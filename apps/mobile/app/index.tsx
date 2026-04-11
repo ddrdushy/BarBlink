@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, Animated, Easing } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,7 +7,7 @@ import { colors } from '@/constants/theme';
 
 export default function Splash() {
   const router = useRouter();
-  const glow = new Animated.Value(0);
+  const glow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.loop(
