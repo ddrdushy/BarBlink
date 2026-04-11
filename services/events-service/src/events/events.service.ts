@@ -80,7 +80,7 @@ export class EventsService {
         ...dto,
         date: new Date(dto.date),
         coverCharge: dto.coverCharge != null ? new Prisma.Decimal(dto.coverCharge) : undefined,
-      },
+      } as any,
     });
   }
 
