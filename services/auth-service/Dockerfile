@@ -13,9 +13,10 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
-COPY --from=builder /app/src/prisma/schema.prisma ./src/prisma/schema.prisma
+COPY --from=builder /app/src/prisma ./src/prisma
 
 ENV NODE_ENV=production
 EXPOSE 3001
 
-CMD ["node", "dist/main"]
+# Push schema to DB on startup (idempotent), then start server
+CMD sh -c "npx prisma db push --skip-generate && node dist/main"
