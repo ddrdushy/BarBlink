@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Screen } from '@/components/Screen';
 import { NeonButton } from '@/components/NeonButton';
 import { colors, spacing } from '@/constants/theme';
@@ -63,7 +64,11 @@ export default function ProfileSetup() {
       <NeonButton
         label="Let's go"
         disabled={!valid}
-        onPress={() => router.replace('/(tabs)')}
+        onPress={async () => {
+          // Temp-store profile data for when user-service is built
+          await AsyncStorage.setItem('bbk_profile_draft', JSON.stringify({ username, displayName }));
+          router.replace('/(tabs)');
+        }}
       />
     </Screen>
   );

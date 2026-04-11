@@ -4,9 +4,11 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from '@/components/Logo';
 import { colors } from '@/constants/theme';
+import { useAuth } from '@/context/auth';
 
 export default function Splash() {
   const router = useRouter();
+  const { user, isLoading } = useAuth();
   const glow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -16,10 +18,20 @@ export default function Splash() {
         Animated.timing(glow, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     ).start();
+  }, [glow]);
 
-    const t = setTimeout(() => router.replace('/(auth)/welcome'), 1600);
+  useEffect(() => {
+    if (isLoading) return;
+    // Wait at least 1.2s for the splash animation before navigating
+    const t = setTimeout(() => {
+      if (user) {
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/(auth)/welcome');
+      }
+    }, 1200);
     return () => clearTimeout(t);
-  }, [router]);
+  }, [isLoading, user, router]);
 
   return (
     <View style={styles.root}>

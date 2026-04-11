@@ -30,7 +30,8 @@ export default function AgeGate() {
       Alert.alert('Sorry', 'Barblink is 18+ only.');
       return;
     }
-    router.push('/(auth)/phone');
+    const dob = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    router.push({ pathname: '/(auth)/phone', params: { mode: 'register', dob } });
   };
 
   return (

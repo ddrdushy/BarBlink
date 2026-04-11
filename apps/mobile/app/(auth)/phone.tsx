@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { NeonButton } from '@/components/NeonButton';
 import { colors, spacing, touchTarget } from '@/constants/theme';
@@ -18,15 +18,39 @@ import {
   PRIORITY_COUNTRIES,
   type DialCountry,
 } from '@/constants/dialCodes';
+import { apiPost, ApiError } from '@/lib/api';
 
 export default function PhoneScreen() {
   const router = useRouter();
+  const { mode, dob } = useLocalSearchParams<{ mode?: string; dob?: string }>();
+  const isLogin = mode === 'login';
   const [country, setCountry] = useState<DialCountry>(PRIORITY_COUNTRIES[0]);
   const [localNumber, setLocalNumber] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const fullPhone = `${country.dialCode}${localNumber}`;
   const valid = localNumber.replace(/\D/g, '').length >= 7;
+
+  const handleContinue = async () => {
+    if (isLogin) {
+      // Login flow: call send-otp, then go to OTP screen
+      setLoading(true);
+      setError('');
+      try {
+        await apiPost('/auth/send-otp', { phone: fullPhone });
+        router.push({ pathname: '/(auth)/otp', params: { phone: fullPhone, mode: 'login' } });
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Register flow: go to email screen
+      router.push({ pathname: '/(auth)/email', params: { phone: fullPhone, mode: 'register', dob: dob || '' } });
+    }
+  };
 
   return (
     <Screen>
@@ -62,14 +86,15 @@ export default function PhoneScreen() {
         />
       </View>
 
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <View style={{ flex: 1 }} />
 
       <NeonButton
-        label="Continue"
-        onPress={() =>
-          router.push({ pathname: '/(auth)/email', params: { phone: fullPhone } })
-        }
+        label={isLogin ? 'Send code' : 'Continue'}
+        onPress={handleContinue}
         disabled={!valid}
+        loading={loading}
       />
 
       <Modal
@@ -146,6 +171,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     maxWidth: 340,
+  },
+  error: {
+    color: colors.danger,
+    fontSize: 13,
+    marginTop: spacing.md,
   },
   field: {
     marginTop: spacing.xxl,

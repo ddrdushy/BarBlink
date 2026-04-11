@@ -4,13 +4,40 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { NeonButton } from '@/components/NeonButton';
 import { colors, spacing } from '@/constants/theme';
+import { apiPost, ApiError } from '@/lib/api';
 
 export default function EmailScreen() {
   const router = useRouter();
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const { phone, dob } = useLocalSearchParams<{ phone: string; dob?: string }>();
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const handleSendCode = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await apiPost('/auth/register', {
+        phone,
+        email,
+        dateOfBirth: dob || '',
+      });
+      router.push({
+        pathname: '/(auth)/otp',
+        params: { phone, email, mode: 'register' },
+      });
+    } catch (e) {
+      if (e instanceof ApiError && e.statusCode === 409) {
+        setError('This phone is already registered. Try logging in instead.');
+      } else {
+        setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Screen>
@@ -36,17 +63,15 @@ export default function EmailScreen() {
         />
       </View>
 
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <View style={{ flex: 1 }} />
 
       <NeonButton
         label="Send code"
-        onPress={() =>
-          router.push({
-            pathname: '/(auth)/otp',
-            params: { phone, email },
-          })
-        }
+        onPress={handleSendCode}
         disabled={!valid}
+        loading={loading}
       />
     </Screen>
   );
@@ -85,5 +110,10 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 18,
     fontWeight: '600',
+  },
+  error: {
+    color: colors.danger,
+    fontSize: 13,
+    marginTop: spacing.md,
   },
 });

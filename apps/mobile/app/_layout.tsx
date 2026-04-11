@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { colors } from '@/constants/theme';
+import { AuthProvider } from '@/context/auth';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -19,6 +20,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <AuthProvider>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -31,6 +33,7 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
       </Stack>
+      </AuthProvider>
     </GestureHandlerRootView>
   );
 }

@@ -23,7 +23,7 @@ export default function Welcome() {
       <View style={styles.hero}>
         <View style={styles.badge}>
           <View style={styles.liveDot} />
-          <Text style={styles.badgeText}>LIVE IN KUALA LUMPUR</Text>
+          <Text style={styles.badgeText}>LIVE IN KL & COLOMBO</Text>
         </View>
         <Text style={styles.headline}>
           Your night starts{'\n'}with a <Text style={styles.accent}>Blink</Text>.
@@ -35,11 +35,14 @@ export default function Welcome() {
       </View>
 
       <View style={styles.actions}>
-        <NeonButton label="Get started" onPress={() => router.push('/(auth)/age-gate')} />
+        <NeonButton
+          label="Get started"
+          onPress={() => router.push({ pathname: '/(auth)/age-gate', params: { mode: 'register' } })}
+        />
         <NeonButton
           label="I already have an account"
           variant="ghost"
-          onPress={() => router.push('/(auth)/phone')}
+          onPress={() => router.push({ pathname: '/(auth)/phone', params: { mode: 'login' } })}
         />
       </View>
 
