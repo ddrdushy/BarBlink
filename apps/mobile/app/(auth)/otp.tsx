@@ -9,7 +9,7 @@ const OTP_LENGTH = 6;
 
 export default function OtpScreen() {
   const router = useRouter();
-  const { phone } = useLocalSearchParams<{ phone?: string }>();
+  const { phone, email } = useLocalSearchParams<{ phone?: string; email?: string }>();
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const refs = useRef<Array<TextInput | null>>(Array(OTP_LENGTH).fill(null));
 
@@ -27,10 +27,10 @@ export default function OtpScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.step}>STEP 3 / 4</Text>
+        <Text style={styles.step}>STEP 4 / 5</Text>
         <Text style={styles.title}>Enter code</Text>
         <Text style={styles.sub}>
-          Sent to +60 {phone ?? ''}. Didn't get it? <Text style={styles.link}>Resend</Text>
+          Sent to {email ?? ''}. Didn't get it? <Text style={styles.link}>Resend</Text>
         </Text>
       </View>
 

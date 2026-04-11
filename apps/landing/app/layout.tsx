@@ -30,13 +30,16 @@ export const metadata: Metadata = {
     template: '%s · Barblink',
   },
   description:
-    "KL's nightlife social app. Discover bars and clubs, follow your favourite DJs, and track your crew — all in one place.",
+    "The nightlife social app for Kuala Lumpur and Colombo. Discover bars and clubs, follow your favourite DJs, and track your crew — all in one place.",
   keywords: [
     'Kuala Lumpur nightlife',
     'KL bars',
     'KL clubs',
     'DJ tonight KL',
     'nightlife app Malaysia',
+    'Colombo nightlife',
+    'Sri Lanka bars',
+    'nightlife app Asia',
     'bar buddy',
     'Barblink',
   ],
@@ -44,17 +47,17 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Barblink — Blink, You're In.",
     description:
-      "KL's nightlife social app. Bars, DJs, crowds, and your crew — all in one blink.",
+      "The nightlife social app for KL & Colombo. Bars, DJs, crowds, and your crew — all in one blink.",
     url: 'https://barblink.com',
     siteName: 'Barblink',
-    locale: 'en_MY',
+    locale: 'en',
     type: 'website',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Barblink — Blink, You\'re In.' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: "Barblink — Blink, You're In.",
-    description: "KL's nightlife social app. Bars, DJs, crowds, and your crew.",
+    description: "The nightlife social app for KL & Colombo. Bars, DJs, crowds, and your crew.",
     images: ['/og-image.png'],
   },
   robots: { index: true, follow: true },

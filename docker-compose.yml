@@ -30,7 +30,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-barblink_dev}
       POSTGRES_DB: barblink
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/init-postgres.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -149,6 +149,31 @@ services:
     # Keep alive so interactive `docker exec` works; actual commands go through bin/eas
     entrypoint: ["sleep", "infinity"]
     profiles: ["tools"]
+
+  # ---------------------------------------------------------------------------
+  # Auth service — NestJS + Prisma. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: barblink-auth-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_auth
+      JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-15m}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-30d}
+      MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+      MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-mg.barblink.com}
+      MAILGUN_FROM: ${MAILGUN_FROM:-Barblink <noreply@mg.barblink.com>}
+      PORT: "3001"
+    ports:
+      - "${AUTH_SERVICE_PORT:-3001}:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
 
   # ---------------------------------------------------------------------------
   # Landing page (optional, production-style image). Enable with --profile landing

@@ -15,7 +15,7 @@ export default function ProfileSetup() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.step}>STEP 4 / 4</Text>
+        <Text style={styles.step}>STEP 5 / 5</Text>
         <Text style={styles.title}>Set up profile</Text>
         <Text style={styles.sub}>
           This is what your crew will see when you check in. Pick a username

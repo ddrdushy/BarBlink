@@ -13,7 +13,7 @@ export default function Footer() {
               </span>
             </a>
             <p className="text-ink-mute text-[13.5px] leading-relaxed max-w-[280px]">
-              The nightlife social app for Kuala Lumpur. Blink, you're in.
+              The nightlife social app for KL, Colombo & beyond. Blink, you're in.
             </p>
             <div className="mt-6 flex items-center gap-3">
               {[
@@ -67,7 +67,7 @@ export default function Footer() {
         <div className="pt-8 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4 text-[12px] text-ink-mute">
           <div>© 2026 Barblink · 18+ only</div>
           <div className="flex items-center gap-2">
-            Made for KL nightlife <span>🇲🇾</span>
+            Made for Asia's nightlife <span>🇲🇾🇱🇰</span>
           </div>
         </div>
 

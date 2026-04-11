@@ -44,7 +44,7 @@ export default function Hero() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-live" />
             </span>
             <span className="text-[12px] font-medium text-white/80 tracking-wide">
-              Now launching in Kuala Lumpur <span className="ml-1">🇲🇾</span>
+              Now launching in KL & Colombo <span className="ml-1">🇲🇾🇱🇰</span>
             </span>
           </motion.div>
 
@@ -79,7 +79,7 @@ export default function Hero() {
             transition={{ duration: 0.8, delay: 0.25 }}
             className="mt-8 max-w-[640px] text-[17px] sm:text-[19px] text-ink-mute leading-relaxed font-light"
           >
-            The nightlife social app for KL. Discover where the vibe is real,
+            The nightlife social app for KL & Colombo. Discover where the vibe is real,
             follow your favourite DJs, and know exactly where your crew is —{' '}
             <span className="text-white/90">before</span> you leave the house.
           </motion.p>
@@ -135,7 +135,7 @@ export default function Hero() {
           className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-[920px] mx-auto"
         >
           {[
-            { k: '50+', v: 'KL venues onboarded', d: 'Bukit Bintang · KLCC · Bangsar' },
+            { k: '50+', v: 'KL & Colombo venues', d: 'Bukit Bintang · KLCC · Fort' },
             { k: '120', v: 'DJs & live acts', d: 'Auto-updated nightly' },
             { k: '3s', v: 'To check in', d: 'One tap. No scanning.' },
             { k: '24/7', v: 'Live crowd meter', d: 'See packed vs. quiet' },

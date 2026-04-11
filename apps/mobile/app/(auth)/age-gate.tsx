@@ -36,7 +36,7 @@ export default function AgeGate() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.step}>STEP 1 / 4</Text>
+        <Text style={styles.step}>STEP 1 / 5</Text>
         <Text style={styles.title}>How old are you?</Text>
         <Text style={styles.sub}>
           Barblink is 18+ only. This is a hard gate — under-18s can't proceed.

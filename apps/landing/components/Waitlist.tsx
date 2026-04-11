@@ -67,12 +67,12 @@ export default function Waitlist() {
             <h2 className="font-display font-extrabold tracking-tightest text-white"
               style={{ fontSize: 'clamp(2.25rem, 5.5vw, 4rem)', lineHeight: 0.95 }}
             >
-              Be first in KL to<br />
+              Be first to<br />
               <span className="text-gradient-neon">Blink in.</span>
             </h2>
 
             <p className="mt-6 max-w-[460px] mx-auto text-ink-mute text-[15.5px] leading-relaxed">
-              Join the waitlist. The second Barblink drops in Kuala Lumpur,
+              Join the waitlist. The second Barblink launches in your city,
               you'll get a TestFlight invite and a download link — before
               anyone else.
             </p>
@@ -88,7 +88,7 @@ export default function Waitlist() {
                   You're on the list.
                 </div>
                 <div className="text-ink-mute text-[14px] mt-1">
-                  We'll let you know the moment Barblink drops in KL.
+                  We'll let you know the moment Barblink launches near you.
                 </div>
               </motion.div>
             ) : (
@@ -126,7 +126,7 @@ export default function Waitlist() {
                 <div className="w-1.5 h-1.5 rounded-full bg-live" /> 2,841 joined
               </div>
               <div className="flex items-center gap-2 text-[12px] text-ink-mute">
-                <span>🇲🇾</span> Launching in KL first
+                <span>🇲🇾🇱🇰</span> Launching in KL & Colombo
               </div>
               <div className="flex items-center gap-2 text-[12px] text-ink-mute">
                 <span>🔒</span> 18+ gated
