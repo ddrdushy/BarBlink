@@ -1,17 +1,58 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Screen } from '@/components/Screen';
 import { NeonButton } from '@/components/NeonButton';
-import { colors, spacing } from '@/constants/theme';
+import { colors, spacing, touchTarget } from '@/constants/theme';
+import { userPost, ApiError } from '@/lib/api';
+import { useAuth } from '@/context/auth';
+
+const COUNTRIES = [
+  { code: 'MY', flag: '\u{1F1F2}\u{1F1FE}', name: 'Malaysia' },
+  { code: 'LK', flag: '\u{1F1F1}\u{1F1F0}', name: 'Sri Lanka' },
+];
 
 export default function ProfileSetup() {
   const router = useRouter();
+  const { token } = useAuth();
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [country, setCountry] = useState(COUNTRIES[0]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const valid = username.trim().length >= 3 && displayName.trim().length >= 2;
+
+  const handleSubmit = async () => {
+    if (!token) return;
+    setLoading(true);
+    setError('');
+    try {
+      await userPost('/users/me', {
+        username: username.trim(),
+        displayName: displayName.trim(),
+        country: country.code,
+      }, token);
+      router.replace('/(tabs)');
+    } catch (e) {
+      if (e instanceof ApiError && e.statusCode === 409) {
+        setError('Username is already taken. Try another.');
+      } else {
+        setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Screen>
@@ -59,17 +100,61 @@ export default function ProfileSetup() {
         />
       </View>
 
+      <View style={styles.field}>
+        <Text style={styles.label}>Country</Text>
+        <Pressable
+          style={styles.countryPicker}
+          onPress={() => setPickerOpen(true)}
+        >
+          <Text style={styles.countryText}>{country.flag}  {country.name}</Text>
+          <Text style={styles.caret}>{'\u25BE'}</Text>
+        </Pressable>
+      </View>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <View style={{ flex: 1 }} />
 
       <NeonButton
         label="Let's go"
         disabled={!valid}
-        onPress={async () => {
-          // Temp-store profile data for when user-service is built
-          await AsyncStorage.setItem('bbk_profile_draft', JSON.stringify({ username, displayName }));
-          router.replace('/(tabs)');
-        }}
+        loading={loading}
+        onPress={handleSubmit}
       />
+
+      <Modal
+        visible={pickerOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setPickerOpen(false)}
+      >
+        <View style={modal.root}>
+          <View style={modal.handle} />
+          <View style={modal.headerRow}>
+            <Text style={modal.title}>Select country</Text>
+            <Pressable onPress={() => setPickerOpen(false)} hitSlop={16} style={modal.closeBtn}>
+              <Text style={modal.closeText}>{'\u2715'}</Text>
+            </Pressable>
+          </View>
+          <FlatList
+            data={COUNTRIES}
+            keyExtractor={(c) => c.code}
+            ItemSeparatorComponent={() => <View style={modal.sep} />}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[modal.row, item.code === country.code && modal.rowActive]}
+                onPress={() => { setCountry(item); setPickerOpen(false); }}
+              >
+                <Text style={modal.flag}>{item.flag}</Text>
+                <Text style={modal.countryName}>{item.name}</Text>
+                {item.code === country.code && (
+                  <Text style={modal.check}>{'\u2713'}</Text>
+                )}
+              </Pressable>
+            )}
+          />
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -97,10 +182,7 @@ const styles = StyleSheet.create({
   },
   avatarEmoji: { fontSize: 36 },
   avatarHint: { color: colors.inkMute, fontSize: 13 },
-  field: {
-    marginTop: spacing.xl,
-    gap: 8,
-  },
+  field: { marginTop: spacing.xl, gap: 8 },
   label: {
     color: colors.inkMute,
     fontSize: 12,
@@ -117,12 +199,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 18,
   },
-  at: {
-    color: colors.inkMute,
-    fontSize: 18,
-    fontWeight: '700',
-    marginRight: 4,
-  },
+  at: { color: colors.inkMute, fontSize: 18, fontWeight: '700', marginRight: 4 },
   input: {
     flex: 1,
     paddingVertical: 18,
@@ -137,4 +214,34 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 18,
   },
+  countryPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.bgSurface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    minHeight: touchTarget,
+  },
+  countryText: { color: colors.ink, fontSize: 17, fontWeight: '600' },
+  caret: { color: colors.inkMute, fontSize: 14 },
+  error: { color: colors.danger, fontSize: 13, marginTop: spacing.md },
+});
+
+const modal = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg, paddingTop: 12 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.inkHint, alignSelf: 'center', marginBottom: 16 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 16 },
+  title: { color: colors.ink, fontSize: 20, fontWeight: '800' },
+  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.bgSurface, justifyContent: 'center', alignItems: 'center' },
+  closeText: { color: colors.inkMute, fontSize: 14 },
+  sep: { height: 1, backgroundColor: 'rgba(255,255,255,0.04)', marginHorizontal: 20 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, minHeight: touchTarget, gap: 14 },
+  rowActive: { backgroundColor: colors.neonGhost },
+  flag: { fontSize: 28 },
+  countryName: { color: colors.ink, fontSize: 17, fontWeight: '600', flex: 1 },
+  check: { color: colors.neonBright, fontSize: 18, fontWeight: '700' },
 });

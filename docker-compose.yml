@@ -176,6 +176,26 @@ services:
     profiles: ["services"]
 
   # ---------------------------------------------------------------------------
+  # User service — NestJS + Prisma. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: barblink-user-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_user
+      JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      PORT: "3002"
+    ports:
+      - "${USER_SERVICE_PORT:-3002}:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
+
+  # ---------------------------------------------------------------------------
   # Landing page (optional, production-style image). Enable with --profile landing
   # ---------------------------------------------------------------------------
   landing:

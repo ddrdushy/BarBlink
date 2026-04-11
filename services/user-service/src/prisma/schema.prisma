@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id            String   @id @db.Uuid
+  username      String   @unique @db.VarChar(30)
+  displayName   String?  @map("display_name") @db.VarChar(60)
+  bio           String?
+  avatarUrl     String?  @map("avatar_url")
+  country       String   @default("MY") @db.VarChar(2)
+  drinkPrefs    String[] @default([]) @map("drink_prefs")
+  goingTonight  Boolean  @default(false) @map("going_tonight")
+  goingVenueId  String?  @map("going_venue_id") @db.Uuid
+  lastSeenVenue String?  @map("last_seen_venue") @db.Uuid
+  showLastSeen  Boolean  @default(true) @map("show_last_seen")
+  isHomeSafe    Boolean  @default(false) @map("is_home_safe")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("profiles")
+}
