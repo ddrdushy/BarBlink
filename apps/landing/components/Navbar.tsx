@@ -37,7 +37,7 @@ export default function Navbar() {
             <span className="absolute inset-0 rounded-full bg-neon/30 blur-lg opacity-0 group-hover:opacity-100 transition" />
           </div>
           <span className="font-display font-extrabold text-[19px] tracking-tighter">
-            BAR<span className="text-neon">LINK</span>
+            BAR<span className="text-neon">BLINK</span>
           </span>
         </a>
 

@@ -32,6 +32,9 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     if (!token && pathname !== '/login') {
       router.replace('/login');
     }
+    if (token && pathname === '/login') {
+      router.replace('/');
+    }
   }, [ready, token, pathname, router]);
 
   const setToken = (t: string | null) => {

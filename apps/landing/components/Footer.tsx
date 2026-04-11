@@ -9,7 +9,7 @@ export default function Footer() {
                 🦉
               </div>
               <span className="font-display font-extrabold text-[19px] tracking-tighter">
-                BAR<span className="text-neon">LINK</span>
+                BAR<span className="text-neon">BLINK</span>
               </span>
             </a>
             <p className="text-ink-mute text-[13.5px] leading-relaxed max-w-[280px]">
