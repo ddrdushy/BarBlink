@@ -50,14 +50,14 @@ export class DjService {
       .replace(/(^-|-$)/g, '');
 
     return this.prisma.djProfile.create({
-      data: { ...dto, slug },
+      data: { ...dto, slug } as any,
     });
   }
 
   async update(id: string, dto: UpdateDjDto) {
     const dj = await this.prisma.djProfile.findUnique({ where: { id } });
     if (!dj) throw new NotFoundException('DJ not found');
-    return this.prisma.djProfile.update({ where: { id }, data: dto });
+    return this.prisma.djProfile.update({ where: { id }, data: dto as any });
   }
 
   async adminStats() {

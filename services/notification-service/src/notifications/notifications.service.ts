@@ -63,7 +63,7 @@ export class NotificationsService {
         type: dto.type,
         title: dto.title,
         body: dto.body || null,
-        metadata: dto.metadata || null,
+        metadata: (dto.metadata || undefined) as any,
       },
     });
   }
