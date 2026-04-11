@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EventStatus {
+  upcoming
+  ongoing
+  ended
+  cancelled
+}
+
+model Event {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId      String      @map("venue_id") @db.Uuid
+  djId         String?     @map("dj_id") @db.Uuid
+  name         String      @db.VarChar(200)
+  description  String?
+  date         DateTime    @db.Date
+  startTime    String      @map("start_time") @db.VarChar(5)
+  endTime      String?     @map("end_time") @db.VarChar(5)
+  coverCharge  Decimal?    @map("cover_charge") @db.Decimal(10, 2)
+  country      String      @default("MY") @db.VarChar(2)
+  status       EventStatus @default(upcoming)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz()
+
+  rsvps Rsvp[]
+
+  @@map("events")
+}
+
+model Rsvp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId   String   @map("event_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@map("rsvps")
+}

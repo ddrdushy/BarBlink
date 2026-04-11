@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UserStreak {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String    @unique @map("user_id") @db.Uuid
+  currentStreak   Int       @default(0) @map("current_streak")
+  longestStreak   Int       @default(0) @map("longest_streak")
+  lastCheckinDate DateTime? @map("last_checkin_date") @db.Date
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("user_streaks")
+}
+
+model Badge {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  type     String   @db.VarChar(50) // 'night_owl' | 'explorer' | 'regular' | 'social_butterfly' | 'first_checkin'
+  earnedAt DateTime @default(now()) @map("earned_at") @db.Timestamptz()
+
+  @@unique([userId, type])
+  @@map("badges")
+}
+
+model VenueCollection {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  name        String   @db.VarChar(100)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  items VenueCollectionItem[]
+
+  @@map("venue_collections")
+}
+
+model VenueCollectionItem {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collectionId String   @map("collection_id") @db.Uuid
+  venueId      String   @map("venue_id") @db.Uuid
+  addedAt      DateTime @default(now()) @map("added_at") @db.Timestamptz()
+
+  collection VenueCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, venueId])
+  @@map("venue_collection_items")
+}

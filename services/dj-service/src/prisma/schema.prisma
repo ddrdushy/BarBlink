@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DjType {
+  dj
+  band
+}
+
+enum DjStatus {
+  active
+  inactive
+}
+
+model DjProfile {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String   @db.VarChar(100)
+  slug            String   @unique @db.VarChar(100)
+  type            DjType   @default(dj)
+  bio             String?
+  avatarUrl       String?  @map("avatar_url")
+  genreTags       String[] @default([]) @map("genre_tags")
+  instagramHandle String?  @map("instagram_handle")
+  country         String   @default("MY") @db.VarChar(2)
+  status          DjStatus @default(active)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  venueLinks DjVenueLink[]
+
+  @@map("dj_profiles")
+}
+
+model DjVenueLink {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  djId      String   @map("dj_id") @db.Uuid
+  venueId   String   @map("venue_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  dj DjProfile @relation(fields: [djId], references: [id], onDelete: Cascade)
+
+  @@unique([djId, venueId])
+  @@map("dj_venue_links")
+}

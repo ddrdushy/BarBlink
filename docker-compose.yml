@@ -257,6 +257,127 @@ services:
     profiles: ["services"]
 
   # ---------------------------------------------------------------------------
+  # Discovery service — nearby, search, map. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  discovery-service:
+    build:
+      context: ./services/discovery-service
+      dockerfile: Dockerfile
+    container_name: barblink-discovery-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_discovery
+      VENUE_SERVICE_URL: http://venue-service:3003/v1
+      CHECKIN_SERVICE_URL: http://checkin-service:3006/v1
+      PORT: "3004"
+    ports:
+      - "${DISCOVERY_SERVICE_PORT:-3004}:3004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
+
+  # ---------------------------------------------------------------------------
+  # Chat service — DMs, group chats. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile
+    container_name: barblink-chat-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_chat
+      JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      PORT: "3007"
+    ports:
+      - "${CHAT_SERVICE_PORT:-3007}:3007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
+
+  # ---------------------------------------------------------------------------
+  # Notification service — push + in-app. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: barblink-notification-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_notification
+      JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      PORT: "3008"
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-3008}:3008"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
+
+  # ---------------------------------------------------------------------------
+  # DJ service — profiles, genres. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  dj-service:
+    build:
+      context: ./services/dj-service
+      dockerfile: Dockerfile
+    container_name: barblink-dj-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_dj
+      JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      PORT: "3010"
+    ports:
+      - "${DJ_SERVICE_PORT:-3010}:3010"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
+
+  # ---------------------------------------------------------------------------
+  # Events service — events, RSVP. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  events-service:
+    build:
+      context: ./services/events-service
+      dockerfile: Dockerfile
+    container_name: barblink-events-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_events
+      JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      PORT: "3011"
+    ports:
+      - "${EVENTS_SERVICE_PORT:-3011}:3011"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
+
+  # ---------------------------------------------------------------------------
+  # Community service — streaks, badges, leaderboards. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  community-service:
+    build:
+      context: ./services/community-service
+      dockerfile: Dockerfile
+    container_name: barblink-community-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_community
+      JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      PORT: "3012"
+    ports:
+      - "${COMMUNITY_SERVICE_PORT:-3012}:3012"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
+
+  # ---------------------------------------------------------------------------
   # Landing page (optional, production-style image). Enable with --profile landing
   # ---------------------------------------------------------------------------
   landing:

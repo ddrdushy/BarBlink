@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Discovery service uses venue-service's data via HTTP calls.
+// This DB stores search indexes and cached data.
+
+model SearchLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  query     String
+  results   Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("search_logs")
+}

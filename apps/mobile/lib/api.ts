@@ -123,3 +123,13 @@ export function socialPost<T>(path: string, body: Record<string, unknown>, token
 export function socialDelete<T>(path: string, token: string): Promise<T> {
   return apiFetch<T>(SOCIAL_API, path, { method: 'DELETE', token });
 }
+
+export const CHAT_API = process.env.EXPO_PUBLIC_CHAT_API || `http://${DEV_HOST}:3007/v1`;
+
+export function chatGet<T>(path: string, token: string): Promise<T> {
+  return apiFetch<T>(CHAT_API, path, { method: 'GET', token });
+}
+
+export function chatPost<T>(path: string, body: Record<string, unknown>, token: string): Promise<T> {
+  return apiFetch<T>(CHAT_API, path, { method: 'POST', body, token });
+}
