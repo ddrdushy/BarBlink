@@ -1,7 +1,18 @@
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Android emulator uses 10.0.2.2 to reach host, iOS sim uses localhost
-const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+// Expo Go on a physical device: use the dev server host IP (same machine running Metro)
+// iOS Simulator: localhost works
+// Android Emulator: 10.0.2.2 maps to host
+function getDevHost(): string {
+  const debuggerHost = Constants.expoConfig?.hostUri ?? Constants.manifest2?.extra?.expoGo?.debuggerHost;
+  if (debuggerHost) {
+    return debuggerHost.split(':')[0]; // strip Metro port
+  }
+  return Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+}
+
+const DEV_HOST = getDevHost();
 
 export const AUTH_API = process.env.EXPO_PUBLIC_AUTH_API || `http://${DEV_HOST}:3001/v1`;
 export const USER_API = process.env.EXPO_PUBLIC_USER_API || `http://${DEV_HOST}:3002/v1`;
