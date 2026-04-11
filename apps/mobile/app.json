@@ -1,0 +1,77 @@
+{
+  "expo": {
+    "name": "Barblink",
+    "slug": "barblink",
+    "scheme": "barblink",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#0D0D0F"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.barblink.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Barblink uses your location to show bars and clubs near you and to check you in at a venue.",
+        "NSCameraUsageDescription": "Barblink uses the camera so you can post photos of your night out.",
+        "NSPhotoLibraryUsageDescription": "Barblink accesses your photos so you can share moments from your night.",
+        "NSUserTrackingUsageDescription": "Barblink never tracks you across other apps. This permission is not used."
+      }
+    },
+    "android": {
+      "package": "com.barblink.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D0D0F"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png",
+      "name": "Barblink — Blink, You're In.",
+      "shortName": "Barblink",
+      "themeColor": "#0D0D0F",
+      "backgroundColor": "#0D0D0F",
+      "description": "KL's nightlife social app. Discover bars, follow DJs, track your crew.",
+      "lang": "en",
+      "display": "standalone",
+      "orientation": "portrait"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "backgroundColor": "#0D0D0F",
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "TODO_SET_AFTER_EAS_INIT"
+      }
+    }
+  }
+}
