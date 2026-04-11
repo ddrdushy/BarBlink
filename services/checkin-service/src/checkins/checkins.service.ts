@@ -77,6 +77,31 @@ export class CheckinsService {
     });
   }
 
+  // --- Admin endpoints ---
+
+  async adminListCheckins(query: { page?: number; limit?: number }) {
+    const { page = 1, limit = 20 } = query;
+    const [items, total] = await Promise.all([
+      this.prisma.checkin.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { checkedInAt: 'desc' },
+      }),
+      this.prisma.checkin.count(),
+    ]);
+    return { items, total, page, totalPages: Math.ceil(total / limit) };
+  }
+
+  async adminStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [totalToday, totalActive] = await Promise.all([
+      this.prisma.checkin.count({ where: { checkedInAt: { gte: today } } }),
+      this.prisma.checkin.count({ where: { isActive: true } }),
+    ]);
+    return { checkinsToday: totalToday, activeNow: totalActive };
+  }
+
   private async expireStale() {
     const cutoff = new Date(Date.now() - SIX_HOURS_MS);
     await this.prisma.checkin.updateMany({

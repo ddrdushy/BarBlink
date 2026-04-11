@@ -125,4 +125,48 @@ export class SocialService {
       data: { postId, userId, body: dto.body },
     });
   }
+
+  // --- Admin endpoints ---
+
+  async adminListPosts(query: { page?: number; limit?: number }) {
+    const { page = 1, limit = 20 } = query;
+    const [items, total] = await Promise.all([
+      this.prisma.post.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { _count: { select: { likes: true, comments: true } } },
+      }),
+      this.prisma.post.count(),
+    ]);
+    return {
+      items: items.map((p) => ({
+        ...p,
+        likeCount: p._count.likes,
+        commentCount: p._count.comments,
+        _count: undefined,
+      })),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async adminDeletePost(postId: string) {
+    await this.prisma.post.update({
+      where: { id: postId },
+      data: { isActive: false },
+    });
+    return { message: 'Post deleted by admin' };
+  }
+
+  async adminStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [totalPosts, postsToday] = await Promise.all([
+      this.prisma.post.count({ where: { isActive: true } }),
+      this.prisma.post.count({ where: { isActive: true, createdAt: { gte: today } } }),
+    ]);
+    return { totalPosts, postsToday };
+  }
 }

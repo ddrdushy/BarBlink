@@ -1,0 +1,65 @@
+const AUTH_API = process.env.NEXT_PUBLIC_AUTH_API || 'http://localhost:3001/v1';
+const USER_API = process.env.NEXT_PUBLIC_USER_API || 'http://localhost:3002/v1';
+const VENUE_API = process.env.NEXT_PUBLIC_VENUE_API || 'http://localhost:3003/v1';
+const SOCIAL_API = process.env.NEXT_PUBLIC_SOCIAL_API || 'http://localhost:3005/v1';
+const CHECKIN_API = process.env.NEXT_PUBLIC_CHECKIN_API || 'http://localhost:3006/v1';
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T | null;
+  error: { statusCode: number; message: string } | null;
+}
+
+export class ApiError extends Error {
+  constructor(public statusCode: number, message: string) {
+    super(message);
+  }
+}
+
+async function apiFetch<T>(base: string, path: string, opts: {
+  method?: string;
+  body?: Record<string, unknown>;
+  token?: string;
+} = {}): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (opts.token) headers['Authorization'] = `Bearer ${opts.token}`;
+
+  const res = await fetch(`${base}${path}`, {
+    method: opts.method || 'GET',
+    headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const json: ApiResponse<T> = await res.json();
+  if (!json.success || !json.data) {
+    throw new ApiError(json.error?.statusCode || res.status, json.error?.message || 'Error');
+  }
+  return json.data;
+}
+
+// Auth
+export const authPost = <T>(path: string, body: Record<string, unknown>) =>
+  apiFetch<T>(AUTH_API, path, { method: 'POST', body });
+
+// User service
+export const userGet = <T>(path: string, token: string) =>
+  apiFetch<T>(USER_API, path, { token });
+export const userPut = <T>(path: string, body: Record<string, unknown>, token: string) =>
+  apiFetch<T>(USER_API, path, { method: 'PUT', body, token });
+
+// Venue service
+export const venueGet = <T>(path: string, token?: string) =>
+  apiFetch<T>(VENUE_API, path, { token });
+export const venuePost = <T>(path: string, body: Record<string, unknown>, token: string) =>
+  apiFetch<T>(VENUE_API, path, { method: 'POST', body, token });
+export const venuePut = <T>(path: string, body: Record<string, unknown>, token: string) =>
+  apiFetch<T>(VENUE_API, path, { method: 'PUT', body, token });
+
+// Social service
+export const socialGet = <T>(path: string, token: string) =>
+  apiFetch<T>(SOCIAL_API, path, { token });
+export const socialDelete = <T>(path: string, token: string) =>
+  apiFetch<T>(SOCIAL_API, path, { method: 'DELETE', token });
+
+// Checkin service
+export const checkinGet = <T>(path: string, token: string) =>
+  apiFetch<T>(CHECKIN_API, path, { token });

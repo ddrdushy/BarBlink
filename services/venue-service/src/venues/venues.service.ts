@@ -69,4 +69,9 @@ export class VenuesService {
     if (!venue) throw new NotFoundException('Venue not found');
     return this.prisma.venue.update({ where: { id }, data: dto });
   }
+
+  async adminStats() {
+    const total = await this.prisma.venue.count({ where: { status: 'active' } });
+    return { totalVenues: total };
+  }
 }

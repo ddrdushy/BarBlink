@@ -37,4 +37,10 @@ export class VenuesController {
   update(@Param('id') id: string, @Body() dto: UpdateVenueDto) {
     return this.venuesService.update(id, dto);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('admin/stats')
+  stats() {
+    return this.venuesService.adminStats();
+  }
 }

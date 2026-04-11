@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { CheckinsService } from './checkins.service';
 import { CreateCheckinDto } from './dto/checkin.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -38,5 +38,25 @@ export class CheckinsController {
   @Get('tonight')
   getTonight() {
     return this.checkinsService.getTonight();
+  }
+}
+
+@Controller('admin')
+export class AdminCheckinsController {
+  constructor(private readonly checkinsService: CheckinsService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Get('checkins')
+  list(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.checkinsService.adminListCheckins({
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('stats')
+  stats() {
+    return this.checkinsService.adminStats();
   }
 }

@@ -69,3 +69,29 @@ export class SocialController {
     return this.socialService.addComment(userId, id, dto);
   }
 }
+
+@Controller('admin')
+export class AdminSocialController {
+  constructor(private readonly socialService: SocialService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Get('posts')
+  list(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.socialService.adminListPosts({
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('posts/:id')
+  deletePost(@Param('id') id: string) {
+    return this.socialService.adminDeletePost(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('stats')
+  stats() {
+    return this.socialService.adminStats();
+  }
+}

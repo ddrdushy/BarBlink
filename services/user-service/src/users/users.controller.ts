@@ -5,6 +5,7 @@ import {
   Put,
   Body,
   Param,
+  Query,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -42,5 +43,32 @@ export class UsersController {
   @Get(':username')
   getByUsername(@Param('username') username: string) {
     return this.usersService.getByUsername(username);
+  }
+}
+
+@Controller('admin')
+export class AdminUsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Get('users')
+  list(@Query('search') search?: string, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.usersService.adminListUsers({
+      search,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('users/:id/status')
+  updateStatus(@Param('id') id: string, @Body('status') status: string) {
+    return this.usersService.adminUpdateStatus(id, status);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('stats')
+  stats() {
+    return this.usersService.adminStats();
   }
 }

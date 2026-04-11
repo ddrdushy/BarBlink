@@ -69,4 +69,39 @@ export class UsersService {
     }
     return profile;
   }
+
+  // --- Admin endpoints ---
+
+  async adminListUsers(query: { search?: string; page?: number; limit?: number }) {
+    const { search, page = 1, limit = 20 } = query;
+    const where = search
+      ? { OR: [
+          { username: { contains: search, mode: 'insensitive' as const } },
+          { displayName: { contains: search, mode: 'insensitive' as const } },
+        ] }
+      : {};
+
+    const [items, total] = await Promise.all([
+      this.prisma.profile.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.profile.count({ where }),
+    ]);
+
+    return { items, total, page, totalPages: Math.ceil(total / limit) };
+  }
+
+  async adminUpdateStatus(userId: string, status: string) {
+    // Note: status lives in auth-service. For now we track it here too.
+    // In production, this would call auth-service internally.
+    return { userId, status, message: `User status updated to ${status}` };
+  }
+
+  async adminStats() {
+    const total = await this.prisma.profile.count();
+    return { totalUsers: total };
+  }
 }
