@@ -2,7 +2,7 @@ import { IsString, IsOptional } from 'class-validator';
 
 export class CreateCollectionDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()
