@@ -87,26 +87,32 @@ export class AuthService {
   }
 
   async verifyOtp(dto: VerifyOtpDto) {
-    // Find valid OTP
-    const otp = await this.prisma.otpCode.findFirst({
-      where: {
-        phone: dto.phone,
-        code: dto.code,
-        used: false,
-        expiresAt: { gte: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Dev bypass: test account always accepts 123456
+    const isDev = process.env.NODE_ENV !== 'production';
+    const isTestAccount = dto.phone === '+60000000000' && dto.code === '123456';
 
-    if (!otp) {
-      throw new BadRequestException('Invalid or expired OTP code');
+    if (!(isDev && isTestAccount)) {
+      // Find valid OTP
+      const otp = await this.prisma.otpCode.findFirst({
+        where: {
+          phone: dto.phone,
+          code: dto.code,
+          used: false,
+          expiresAt: { gte: new Date() },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!otp) {
+        throw new BadRequestException('Invalid or expired OTP code');
+      }
+
+      // Mark OTP as used
+      await this.prisma.otpCode.update({
+        where: { id: otp.id },
+        data: { used: true },
+      });
     }
-
-    // Mark OTP as used
-    await this.prisma.otpCode.update({
-      where: { id: otp.id },
-      data: { used: true },
-    });
 
     // Mark phone as verified
     const user = await this.prisma.user.update({
