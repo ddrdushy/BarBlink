@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Run any eas / expo command inside the dockerized toolbox.
+#
+# Usage:
+#   ./bin/eas login
+#   ./bin/eas whoami
+#   ./bin/eas init --id <project-id>
+#   ./bin/eas build --platform ios --profile production
+#   ./bin/eas submit --platform ios
+#   ./bin/eas update --branch production
+#
+# The workspace is mounted into the container, so any changes eas makes to
+# app.json / eas.json land directly in your repo. Login state persists in a
+# Docker volume (~/.expo inside the container) so you only `eas login` once.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &>/dev/null && pwd)"
+cd "$REPO_ROOT"
+
+IMAGE="barblink/eas-toolbox:latest"
+
+# Build the image if it doesn't exist yet.
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  echo "[eas] toolbox image missing — building $IMAGE ..."
+  docker compose build eas
+fi
+
+# Decide whether we need an interactive TTY (login / init prompts need it).
+TTY_FLAGS="-i"
+if [ -t 0 ] && [ -t 1 ]; then
+  TTY_FLAGS="-it"
+fi
+
+# Detect what the user is actually running.
+CMD="${1:-}"
+
+case "$CMD" in
+  expo)
+    # `./bin/eas expo <args>` → run expo-cli inside the container
+    shift
+    exec docker run --rm "$TTY_FLAGS" \
+      -v "$REPO_ROOT":/workspace \
+      -v barblink_eas_home:/root/.expo \
+      -v barblink_eas_npm_cache:/root/.npm \
+      -w /workspace/apps/mobile \
+      -e EXPO_NO_TELEMETRY=1 \
+      "$IMAGE" \
+      npx expo "$@"
+    ;;
+  shell|bash|sh)
+    exec docker run --rm "$TTY_FLAGS" \
+      -v "$REPO_ROOT":/workspace \
+      -v barblink_eas_home:/root/.expo \
+      -v barblink_eas_npm_cache:/root/.npm \
+      -w /workspace/apps/mobile \
+      "$IMAGE" \
+      bash
+    ;;
+  "")
+    echo "Usage: ./bin/eas <command> [args]"
+    echo "       ./bin/eas login"
+    echo "       ./bin/eas init --id <project-id>"
+    echo "       ./bin/eas build --platform ios --profile production"
+    echo "       ./bin/eas expo <expo-cli args>"
+    echo "       ./bin/eas shell         # interactive bash in the toolbox"
+    exit 1
+    ;;
+  *)
+    exec docker run --rm "$TTY_FLAGS" \
+      -v "$REPO_ROOT":/workspace \
+      -v barblink_eas_home:/root/.expo \
+      -v barblink_eas_npm_cache:/root/.npm \
+      -w /workspace/apps/mobile \
+      -e EXPO_NO_TELEMETRY=1 \
+      "$IMAGE" \
+      eas "$@"
+    ;;
+esac

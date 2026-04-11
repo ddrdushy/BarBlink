@@ -70,8 +70,15 @@
     },
     "extra": {
       "eas": {
-        "projectId": "TODO_SET_AFTER_EAS_INIT"
+        "projectId": "3ed36b0e-9c33-4a62-9e12-2e86fb7bc477"
       }
+    },
+    "owner": "barblink",
+    "updates": {
+      "url": "https://u.expo.dev/3ed36b0e-9c33-4a62-9e12-2e86fb7bc477"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }

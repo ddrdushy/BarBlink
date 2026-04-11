@@ -1,0 +1,23 @@
+# Keep build contexts small
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+.turbo
+**/.turbo
+.git
+.gitignore
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+.claude
+.vscode
+.idea
+apps/mobile/.expo
+apps/mobile/ios
+apps/mobile/android
+apps/mobile/dist

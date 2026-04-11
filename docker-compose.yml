@@ -1,0 +1,180 @@
+# Barblink — unified dev stack.
+#
+# Brings up the Phase 0 infrastructure (per docs/08-build-order.md) plus a
+# toolbox container with the Expo / EAS CLI preinstalled.
+#
+# Usage:
+#   docker compose up -d              # start infra (postgres, redis, redpanda, minio, meilisearch)
+#   ./bin/eas <command>               # run any eas/expo command inside the toolbox (no install on host)
+#   docker compose --profile landing up -d   # also start the landing page
+#   docker compose down               # stop everything (keeps volumes)
+#   docker compose down -v            # stop + wipe volumes
+#
+# Note: the Expo dev server for apps/mobile is NOT in Docker on purpose — the
+# iOS simulator and Android emulator can't reach a bundler inside a macOS
+# Docker container reliably. Run `pnpm expo start` on the host for dev, and
+# use the toolbox only for eas init / login / build / submit / update.
+
+name: barblink
+
+services:
+  # ---------------------------------------------------------------------------
+  # Postgres — one cluster, many service databases (see init-postgres.sql)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: barblink-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-barblink}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-barblink_dev}
+      POSTGRES_DB: barblink
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/init-postgres.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-barblink} -d barblink"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis — cache, feed, Redis-backed crowd meter
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: barblink-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redpanda — Kafka-compatible event bus (lighter than full Kafka)
+  # ---------------------------------------------------------------------------
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: barblink-redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --kafka-addr=PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+      - --rpc-addr=0.0.0.0:33145
+      - --advertise-rpc-addr=redpanda:33145
+      - --smp=1
+      - --memory=1G
+      - --mode=dev-container
+      - --default-log-level=warn
+    ports:
+      - "${REDPANDA_KAFKA_PORT:-9092}:9092"
+      - "${REDPANDA_ADMIN_PORT:-9644}:9644"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # MinIO — S3-compatible media storage (photos, videos, stories)
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+    container_name: barblink-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-barblink}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-barblink_dev_minio}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Meilisearch — venue + DJ full-text search
+  # ---------------------------------------------------------------------------
+  meilisearch:
+    image: getmeili/meilisearch:v1.11
+    container_name: barblink-meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-barblink_dev_meili}
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "${MEILI_PORT:-7700}:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    # Meilisearch distroless image has no shell / curl / wget — skip the
+    # healthcheck entirely. The service exposes /health on 7700 which you can
+    # curl from the host to verify.
+
+  # ---------------------------------------------------------------------------
+  # EAS / Expo toolbox — one-shot container with eas-cli preinstalled.
+  # Use via ./bin/eas <command> from the host.
+  # ---------------------------------------------------------------------------
+  eas:
+    build:
+      context: ./infrastructure/docker
+      dockerfile: Dockerfile.eas
+    image: barblink/eas-toolbox:latest
+    container_name: barblink-eas
+    working_dir: /workspace/apps/mobile
+    volumes:
+      - .:/workspace
+      - eas_home:/root/.expo
+      - eas_npm_cache:/root/.npm
+    environment:
+      EXPO_NO_TELEMETRY: "1"
+      CI: ""
+    # Keep alive so interactive `docker exec` works; actual commands go through bin/eas
+    entrypoint: ["sleep", "infinity"]
+    profiles: ["tools"]
+
+  # ---------------------------------------------------------------------------
+  # Landing page (optional, production-style image). Enable with --profile landing
+  # ---------------------------------------------------------------------------
+  landing:
+    build:
+      context: ./apps/landing
+      dockerfile: Dockerfile
+      args:
+        DOCKER_BUILD: "1"
+    image: barblink/landing:latest
+    container_name: barblink-landing
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3100"
+      API_URL: ${API_URL:-}
+    ports:
+      - "${LANDING_PORT:-3100}:3100"
+    profiles: ["landing"]
+
+volumes:
+  postgres_data:
+  redis_data:
+  redpanda_data:
+  minio_data:
+  meilisearch_data:
+  eas_home:
+  eas_npm_cache:

@@ -1,0 +1,37 @@
+# Barblink EAS / Expo toolbox.
+# Preinstalls eas-cli + expo + pnpm so the host machine doesn't need any of them.
+# Used via ./bin/eas from the host.
+
+FROM node:20-bookworm-slim
+
+LABEL org.opencontainers.image.title="Barblink EAS Toolbox"
+LABEL org.opencontainers.image.description="Node 20 + pnpm 9 + eas-cli preinstalled"
+
+# Native deps eas / expo needs for some commands (git for version, openssh for ssh remotes,
+# python3/make/g++ for node-gyp fallbacks, ca-certificates for TLS).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates \
+    openssh-client \
+    python3 \
+    make \
+    g++ \
+    bash \
+  && rm -rf /var/lib/apt/lists/*
+
+# Enable pnpm + install eas-cli globally.
+RUN corepack enable \
+  && corepack prepare pnpm@9.12.0 --activate \
+  && npm install --global eas-cli@latest @expo/cli@latest \
+  && eas --version \
+  && npx expo --version
+
+ENV EXPO_NO_TELEMETRY=1 \
+    NEXT_TELEMETRY_DISABLED=1 \
+    CI=""
+
+WORKDIR /workspace
+
+# Default: interactive bash so `docker compose exec` drops you in a shell with eas on PATH.
+CMD ["bash"]

@@ -8,7 +8,17 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "stack:up": "docker compose up -d postgres redis redpanda minio meilisearch",
+    "stack:down": "docker compose down",
+    "stack:reset": "docker compose down -v",
+    "stack:logs": "docker compose logs -f",
+    "stack:build": "docker compose build",
+    "eas": "./bin/eas",
+    "eas:login": "./bin/eas login",
+    "eas:whoami": "./bin/eas whoami",
+    "eas:build:ios": "./bin/eas build --platform ios --profile preview",
+    "eas:build:android": "./bin/eas build --platform android --profile preview"
   },
   "devDependencies": {
     "turbo": "^2.1.3",
