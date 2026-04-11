@@ -88,7 +88,7 @@ export class AuthService {
 
   async verifyOtp(dto: VerifyOtpDto) {
     // Dev bypass: test account always accepts 123456
-    const isDev = process.env.NODE_ENV !== 'production';
+    const isDev = process.env.NODE_ENV !== 'production' || process.env.DEV_OTP_BYPASS === 'true';
     const isTestAccount = dto.phone === '+60000000000' && dto.code === '123456';
 
     if (!(isDev && isTestAccount)) {

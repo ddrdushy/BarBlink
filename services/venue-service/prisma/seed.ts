@@ -1,4 +1,4 @@
-import { PrismaClient } from '../node_modules/.prisma/venue-client';
+import { PrismaClient } from '../src/prisma/generated';
 
 const prisma = new PrismaClient();
 

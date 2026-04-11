@@ -167,6 +167,7 @@ services:
       MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
       MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-mg.barblink.com}
       MAILGUN_FROM: ${MAILGUN_FROM:-Barblink <noreply@mg.barblink.com>}
+      DEV_OTP_BYPASS: "true"
       PORT: "3001"
     ports:
       - "${AUTH_SERVICE_PORT:-3001}:3001"
