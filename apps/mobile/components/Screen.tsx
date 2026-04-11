@@ -1,5 +1,6 @@
 import { SafeAreaView, StyleSheet, View, ViewStyle } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '@/constants/theme';
 
 type Props = {
@@ -9,11 +10,13 @@ type Props = {
 };
 
 export function Screen({ children, padded = true, style }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <StatusBar style="light" />
       <View style={[styles.root, padded && styles.padded, style]}>{children}</View>
-    </SafeAreaView>
+    </View>
   );
 }
 

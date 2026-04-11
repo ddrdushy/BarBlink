@@ -196,6 +196,26 @@ services:
     profiles: ["services"]
 
   # ---------------------------------------------------------------------------
+  # Venue service — NestJS + Prisma. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  venue-service:
+    build:
+      context: ./services/venue-service
+      dockerfile: Dockerfile
+    container_name: barblink-venue-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_venue
+      JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      PORT: "3003"
+    ports:
+      - "${VENUE_SERVICE_PORT:-3003}:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
+
+  # ---------------------------------------------------------------------------
   # Landing page (optional, production-style image). Enable with --profile landing
   # ---------------------------------------------------------------------------
   landing:

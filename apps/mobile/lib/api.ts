@@ -5,6 +5,7 @@ const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 
 export const AUTH_API = process.env.EXPO_PUBLIC_AUTH_API || `http://${DEV_HOST}:3001/v1`;
 export const USER_API = process.env.EXPO_PUBLIC_USER_API || `http://${DEV_HOST}:3002/v1`;
+export const VENUE_API = process.env.EXPO_PUBLIC_VENUE_API || `http://${DEV_HOST}:3003/v1`;
 
 interface ApiResponse<T> {
   success: boolean;
@@ -34,11 +35,25 @@ async function apiFetch<T>(
     headers['Authorization'] = `Bearer ${options.token}`;
   }
 
-  const res = await fetch(`${baseUrl}${path}`, {
-    method: options.method,
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}${path}`, {
+      method: options.method,
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (e: unknown) {
+    clearTimeout(timeout);
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new ApiError(0, 'Request timed out. Check your connection.');
+    }
+    throw new ApiError(0, 'Network error. Is the server running?');
+  }
+  clearTimeout(timeout);
 
   const json: ApiResponse<T> = await res.json();
 
@@ -66,4 +81,8 @@ export function userGet<T>(path: string, token: string): Promise<T> {
 
 export function userPut<T>(path: string, body: Record<string, unknown>, token: string): Promise<T> {
   return apiFetch<T>(USER_API, path, { method: 'PUT', body, token });
+}
+
+export function venueGet<T>(path: string): Promise<T> {
+  return apiFetch<T>(VENUE_API, path, { method: 'GET' });
 }

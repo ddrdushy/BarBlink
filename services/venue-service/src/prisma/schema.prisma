@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/venue-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VenueStatus {
+  active
+  inactive
+}
+
+model Venue {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String      @db.VarChar(100)
+  slug            String      @unique @db.VarChar(100)
+  description     String?
+  category        String?     @db.VarChar(50)
+  vibeTags        String[]    @default([]) @map("vibe_tags")
+  genreTags       String[]    @default([]) @map("genre_tags")
+  address         String?
+  area            String?     @db.VarChar(50)
+  country         String      @default("MY") @db.VarChar(2)
+  lat             Decimal?    @db.Decimal(9, 6)
+  lng             Decimal?    @db.Decimal(9, 6)
+  phone           String?     @db.VarChar(20)
+  websiteUrl      String?     @map("website_url")
+  instagramHandle String?     @map("instagram_handle") @db.VarChar(60)
+  instagramUrl    String?     @map("instagram_url")
+  barClosesAt     String?     @map("bar_closes_at")
+  kitchenClosesAt String?     @map("kitchen_closes_at")
+  priceRange      Int?        @map("price_range")
+  crowdCapacity   Int?        @map("crowd_capacity")
+  googleRating    Decimal?    @map("google_rating") @db.Decimal(2, 1)
+  coverPhotoUrl   String?     @map("cover_photo_url")
+  status          VenueStatus @default(active)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz()
+
+  photos VenuePhoto[]
+  hours  VenueHour[]
+
+  @@map("venues")
+}
+
+model VenuePhoto {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId      String   @map("venue_id") @db.Uuid
+  url          String
+  source       String   @default("admin") @db.VarChar(20)
+  caption      String?
+  displayOrder Int      @default(0) @map("display_order") @db.SmallInt
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@map("venue_photos")
+}
+
+model VenueHour {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId   String   @map("venue_id") @db.Uuid
+  dayOfWeek Int      @map("day_of_week") @db.SmallInt
+  opensAt   String?  @map("opens_at")
+  closesAt  String?  @map("closes_at")
+  isClosed  Boolean  @default(false) @map("is_closed")
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@map("venue_hours")
+}
