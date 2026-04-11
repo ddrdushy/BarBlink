@@ -17,6 +17,7 @@ const DEV_HOST = getDevHost();
 export const AUTH_API = process.env.EXPO_PUBLIC_AUTH_API || `http://${DEV_HOST}:3001/v1`;
 export const USER_API = process.env.EXPO_PUBLIC_USER_API || `http://${DEV_HOST}:3002/v1`;
 export const VENUE_API = process.env.EXPO_PUBLIC_VENUE_API || `http://${DEV_HOST}:3003/v1`;
+export const CHECKIN_API = process.env.EXPO_PUBLIC_CHECKIN_API || `http://${DEV_HOST}:3006/v1`;
 
 interface ApiResponse<T> {
   success: boolean;
@@ -96,4 +97,16 @@ export function userPut<T>(path: string, body: Record<string, unknown>, token: s
 
 export function venueGet<T>(path: string): Promise<T> {
   return apiFetch<T>(VENUE_API, path, { method: 'GET' });
+}
+
+export function checkinPost<T>(path: string, body: Record<string, unknown>, token: string): Promise<T> {
+  return apiFetch<T>(CHECKIN_API, path, { method: 'POST', body, token });
+}
+
+export function checkinGet<T>(path: string, token?: string): Promise<T> {
+  return apiFetch<T>(CHECKIN_API, path, { method: 'GET', token });
+}
+
+export function checkinDelete<T>(path: string, token: string): Promise<T> {
+  return apiFetch<T>(CHECKIN_API, path, { method: 'DELETE', token });
 }

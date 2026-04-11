@@ -217,6 +217,26 @@ services:
     profiles: ["services"]
 
   # ---------------------------------------------------------------------------
+  # Check-in service — NestJS + Prisma. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  checkin-service:
+    build:
+      context: ./services/checkin-service
+      dockerfile: Dockerfile
+    container_name: barblink-checkin-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_checkin
+      JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      PORT: "3006"
+    ports:
+      - "${CHECKIN_SERVICE_PORT:-3006}:3006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
+
+  # ---------------------------------------------------------------------------
   # Landing page (optional, production-style image). Enable with --profile landing
   # ---------------------------------------------------------------------------
   landing:

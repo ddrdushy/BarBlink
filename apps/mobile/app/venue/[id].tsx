@@ -9,8 +9,10 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
+import { NeonButton } from '@/components/NeonButton';
 import { colors, radii, spacing } from '@/constants/theme';
-import { venueGet } from '@/lib/api';
+import { venueGet, checkinPost, checkinGet } from '@/lib/api';
+import { useAuth } from '@/context/auth';
 
 interface VenueDetail {
   id: string;
@@ -41,8 +43,12 @@ const CATEGORY_EMOJI: Record<string, string> = {
 export default function VenueDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { token } = useAuth();
   const [venue, setVenue] = useState<VenueDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [crowdCount, setCrowdCount] = useState(0);
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkedIn, setCheckedIn] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -50,7 +56,26 @@ export default function VenueDetailScreen() {
       .then(setVenue)
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    // Fetch crowd count
+    checkinGet<{ count: number }>(`/checkins/venue/${id}`)
+      .then((r) => setCrowdCount(r.count))
+      .catch(() => {});
   }, [id]);
+
+  const handleCheckin = async () => {
+    if (!token || !id) return;
+    setCheckingIn(true);
+    try {
+      await checkinPost('/checkins', { venueId: id }, token);
+      setCheckedIn(true);
+      setCrowdCount((c) => c + 1);
+    } catch {
+      // silent
+    } finally {
+      setCheckingIn(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -82,6 +107,11 @@ export default function VenueDetailScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Text style={styles.backText}>{'\u2190'}</Text>
           </Pressable>
+          {crowdCount > 0 && (
+            <View style={styles.crowdBadge}>
+              <Text style={styles.crowdText}>{crowdCount} here now</Text>
+            </View>
+          )}
           <Text style={styles.heroEmoji}>{emoji}</Text>
           <Text style={styles.heroCategory}>
             {(venue.category || '').toUpperCase()}
@@ -162,6 +192,15 @@ export default function VenueDetailScreen() {
               <Text style={styles.address}>{venue.address}</Text>
             </>
           )}
+
+          <View style={{ marginTop: spacing.xxl }}>
+            <NeonButton
+              label={checkedIn ? "You're checked in!" : 'Check in here'}
+              onPress={handleCheckin}
+              disabled={checkedIn}
+              loading={checkingIn}
+            />
+          </View>
         </View>
       </ScrollView>
     </Screen>
@@ -179,6 +218,18 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radii.xl,
     borderBottomRightRadius: radii.xl,
   },
+  crowdBadge: {
+    position: 'absolute',
+    top: 56,
+    right: 20,
+    backgroundColor: colors.neonGhost,
+    borderWidth: 1,
+    borderColor: colors.neonBorder,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  crowdText: { color: colors.neonBright, fontSize: 12, fontWeight: '700' },
   backBtn: {
     position: 'absolute',
     top: 56,

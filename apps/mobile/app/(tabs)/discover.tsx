@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { colors, radii, spacing, touchTarget } from '@/constants/theme';
-import { venueGet } from '@/lib/api';
+import { venueGet, checkinGet } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { userGet } from '@/lib/api';
 
@@ -54,6 +54,7 @@ export default function Discover() {
   const router = useRouter();
   const { token } = useAuth();
   const [venues, setVenues] = useState<VenueItem[]>([]);
+  const [crowdCounts, setCrowdCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<string>('All');
@@ -65,6 +66,18 @@ export default function Discover() {
       if (cat !== 'All') params.set('category', cat);
       const data = await venueGet<VenueListResponse>(`/venues?${params}`);
       setVenues(data.items);
+
+      // Fetch crowd counts for all venues
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        data.items.map(async (v) => {
+          try {
+            const r = await checkinGet<{ count: number }>(`/checkins/venue/${v.id}`);
+            if (r.count > 0) counts[v.id] = r.count;
+          } catch { /* silent */ }
+        }),
+      );
+      setCrowdCounts(counts);
     } catch {
       // silently fail, keep stale data
     }
@@ -155,6 +168,11 @@ export default function Discover() {
                     {item.category} {item.area ? `· ${item.area.replace(/_/g, ' ')}` : ''}
                   </Text>
                 </View>
+                {crowdCounts[item.id] ? (
+                  <View style={styles.crowdBadge}>
+                    <Text style={styles.crowdBadgeText}>{crowdCounts[item.id]} here</Text>
+                  </View>
+                ) : null}
                 {item.googleRating && (
                   <View style={styles.ratingBadge}>
                     <Text style={styles.ratingText}>{parseFloat(item.googleRating).toFixed(1)}</Text>
@@ -236,6 +254,13 @@ const styles = StyleSheet.create({
   },
   cardName: { color: colors.ink, fontSize: 16, fontWeight: '700' },
   cardMeta: { color: colors.inkMute, fontSize: 12, marginTop: 2, textTransform: 'capitalize' },
+  crowdBadge: {
+    backgroundColor: 'rgba(50,215,75,0.15)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  crowdBadgeText: { color: colors.crowdQuiet, fontSize: 11, fontWeight: '700' },
   ratingBadge: {
     backgroundColor: colors.bgElevated,
     borderRadius: 8,

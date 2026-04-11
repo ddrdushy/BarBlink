@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Checkin {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  venueId      String    @map("venue_id") @db.Uuid
+  lat          Decimal?  @db.Decimal(9, 6)
+  lng          Decimal?  @db.Decimal(9, 6)
+  checkedInAt  DateTime  @default(now()) @map("checked_in_at") @db.Timestamptz()
+  checkedOutAt DateTime? @map("checked_out_at") @db.Timestamptz()
+  isActive     Boolean   @default(true) @map("is_active")
+
+  @@map("checkins")
+}
