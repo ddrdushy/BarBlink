@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { colors, radii, spacing, touchTarget } from '@/constants/theme';
@@ -59,6 +60,7 @@ export default function Discover() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<string>('All');
   const [country, setCountry] = useState<string>('MY');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   const fetchVenues = useCallback(async (cat: string, ctry: string) => {
     try {
@@ -107,10 +109,28 @@ export default function Discover() {
   return (
     <Screen padded={false}>
       <View style={styles.header}>
-        <Text style={styles.title}>Discover</Text>
-        <Text style={styles.sub}>
-          {country === 'LK' ? '🇱🇰 Colombo' : '🇲🇾 Kuala Lumpur'}
-        </Text>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.title}>Discover</Text>
+            <Text style={styles.sub}>
+              {country === 'LK' ? '🇱🇰 Colombo' : '🇲🇾 Kuala Lumpur'}
+            </Text>
+          </View>
+          <View style={styles.viewToggle}>
+            <Pressable
+              style={[styles.toggleBtn, viewMode === 'list' && styles.toggleActive]}
+              onPress={() => setViewMode('list')}
+            >
+              <Text style={[styles.toggleText, viewMode === 'list' && styles.toggleTextActive]}>List</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.toggleBtn, viewMode === 'map' && styles.toggleActive]}
+              onPress={() => setViewMode('map')}
+            >
+              <Text style={[styles.toggleText, viewMode === 'map' && styles.toggleTextActive]}>Map</Text>
+            </Pressable>
+          </View>
+        </View>
       </View>
 
       {/* Filter chips */}
@@ -132,7 +152,9 @@ export default function Discover() {
         ))}
       </ScrollView>
 
-      {loading ? (
+      {viewMode === 'map' ? (
+        <MapView venues={venues} crowdCounts={crowdCounts} country={country} />
+      ) : loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.neon} size="large" />
         </View>
@@ -203,11 +225,96 @@ export default function Discover() {
   );
 }
 
+function MapView({ venues, crowdCounts, country }: {
+  venues: VenueItem[];
+  crowdCounts: Record<string, number>;
+  country: string;
+}) {
+  const center = country === 'LK' ? [6.9110, 79.8498] : [3.1480, 101.7100];
+  const zoom = country === 'LK' ? 13 : 13;
+
+  const markers = venues
+    .filter((v) => v.googleRating) // venues with data are more likely to have coords
+    .map((v) => ({
+      id: v.id,
+      name: v.name,
+      category: v.category || 'bar',
+      area: v.area?.replace(/_/g, ' ') || '',
+      crowd: crowdCounts[v.id] || 0,
+    }));
+
+  const html = `<!DOCTYPE html>
+<html><head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>body{margin:0;padding:0}#map{width:100%;height:100vh}</style>
+</head><body>
+<div id="map"></div>
+<script>
+var map=L.map('map').setView([${center[0]},${center[1]}],${zoom});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'OpenStreetMap',maxZoom:18
+}).addTo(map);
+var venues=${JSON.stringify(markers)};
+// Spread markers around the center for visual effect since we don't have exact GPS for all
+venues.forEach(function(v,i){
+  var angle=(i/venues.length)*2*Math.PI;
+  var r=0.005+Math.random()*0.01;
+  var lat=${center[0]}+Math.cos(angle)*r;
+  var lng=${center[1]}+Math.sin(angle)*r;
+  var color=v.crowd>0?'#4CD964':'#C45AFF';
+  var icon=L.divIcon({className:'',html:'<div style="background:'+color+';width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px '+color+'"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+  L.marker([lat,lng],{icon:icon}).addTo(map).bindPopup('<b>'+v.name+'</b><br>'+v.category+(v.crowd>0?' · <span style="color:#4CD964">'+v.crowd+' here</span>':''));
+});
+</script>
+</body></html>`;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <WebView
+        source={{ html }}
+        style={{ flex: 1 }}
+        javaScriptEnabled
+        scrollEnabled={false}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl + 20,
     paddingBottom: spacing.md,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.bgSurface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden',
+  },
+  toggleBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  toggleActive: {
+    backgroundColor: colors.neonGhost,
+  },
+  toggleText: {
+    color: colors.inkMute,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  toggleTextActive: {
+    color: colors.neonBright,
   },
   title: { color: colors.ink, fontSize: 32, fontWeight: '800', letterSpacing: -0.8 },
   sub: { color: colors.inkMute, fontSize: 14, marginTop: 4 },
