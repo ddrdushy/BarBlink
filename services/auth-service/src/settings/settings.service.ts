@@ -19,7 +19,7 @@ export class SettingsService {
     // Mask secret values
     return settings.map((s) => ({
       ...s,
-      value: s.secret ? this.maskValue(s.value) : s.value,
+      value: s.isSecret ? this.maskValue(s.value) : s.value,
     }));
   }
 
@@ -29,7 +29,7 @@ export class SettingsService {
     });
     return settings.map((s) => ({
       ...s,
-      value: s.secret ? this.maskValue(s.value) : s.value,
+      value: s.isSecret ? this.maskValue(s.value) : s.value,
     }));
   }
 
@@ -45,12 +45,12 @@ export class SettingsService {
         key: input.key,
         value: input.value,
         category: input.category,
-        secret: input.secret ?? false,
+        isSecret: input.secret ?? false,
       },
       update: {
         value: input.value,
         category: input.category,
-        secret: input.secret ?? false,
+        isSecret: input.secret ?? false,
       },
     });
   }
