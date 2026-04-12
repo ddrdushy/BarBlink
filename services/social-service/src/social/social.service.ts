@@ -3,14 +3,32 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { StoriesService } from './stories.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { FeedQueryDto } from './dto/feed-query.dto';
 
+interface FeedItem {
+  type: 'hero_post' | 'post' | 'checkin_pair';
+  data: Record<string, unknown>;
+}
+
 @Injectable()
 export class SocialService {
-  constructor(private prisma: PrismaService) {}
+  private readonly checkinServiceUrl: string;
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+    private storiesService: StoriesService,
+  ) {
+    this.checkinServiceUrl = this.configService.get<string>(
+      'CHECKIN_SERVICE_URL',
+      'http://localhost:3006/v1',
+    );
+  }
 
   async getFeed(userId: string, query: FeedQueryDto) {
     const { page = 1, limit = 20 } = query;
@@ -170,6 +188,83 @@ export class SocialService {
       this.prisma.post.count({ where: { isActive: true, createdAt: { gte: today } } }),
     ]);
     return { totalPosts, postsToday };
+  }
+
+  // --- Check-in reactions ---
+
+  async reactToCheckin(userId: string, checkinId: string, emoji: string) {
+    await this.prisma.checkinReaction.upsert({
+      where: { userId_checkinId: { userId, checkinId } },
+      create: { userId, checkinId, emoji },
+      update: { emoji },
+    });
+    return { message: 'Reacted' };
+  }
+
+  async getCheckinReactions(checkinId: string) {
+    return this.prisma.checkinReaction.findMany({
+      where: { checkinId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  // --- Enriched feed ---
+
+  async getEnrichedFeed(userId: string, page = 1, limit = 20) {
+    // Fetch posts
+    const feedResult = await this.getFeed(userId, { page, limit });
+
+    // Fetch active stories
+    const stories = await this.storiesService.getActiveStories(userId);
+
+    // Fetch tonight's check-ins from checkin-service
+    let tonightCheckins: Record<string, unknown>[] = [];
+    try {
+      const res = await fetch(`${this.checkinServiceUrl}/checkins/tonight`);
+      if (res.ok) {
+        const body = await res.json();
+        tonightCheckins = body.data ?? body ?? [];
+      }
+    } catch {
+      // checkin-service may be unavailable - degrade gracefully
+    }
+
+    // Build interleaved items list
+    const items: FeedItem[] = [];
+    const posts = feedResult.items;
+    let checkinIdx = 0;
+
+    for (let i = 0; i < posts.length; i++) {
+      // First post is the hero
+      if (i === 0) {
+        items.push({ type: 'hero_post', data: posts[i] });
+      } else {
+        items.push({ type: 'post', data: posts[i] });
+      }
+
+      // After each post (except hero), try to insert a check-in pair
+      if (i > 0 && checkinIdx + 1 < tonightCheckins.length) {
+        items.push({
+          type: 'checkin_pair',
+          data: {
+            checkins: [
+              tonightCheckins[checkinIdx],
+              tonightCheckins[checkinIdx + 1],
+            ],
+          },
+        });
+        checkinIdx += 2;
+      }
+    }
+
+    // Build tonight strip from remaining check-ins
+    const tonightStrip = tonightCheckins.map((c) => c);
+
+    return {
+      stories,
+      tonightStrip,
+      items,
+    };
   }
 
   private async publishEvent(topic: string, payload: Record<string, unknown>) {

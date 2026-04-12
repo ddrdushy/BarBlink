@@ -6,6 +6,7 @@ import { SocialService } from './social.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { FeedQueryDto } from './dto/feed-query.dto';
+import { ReactCheckinDto } from './dto/react-checkin.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Request } from 'express';
 
@@ -18,6 +19,24 @@ export class SocialController {
   getFeed(@Req() req: Request, @Query() query: FeedQueryDto) {
     const { userId } = req.user as { userId: string };
     return this.socialService.getFeed(userId, query);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('feed/enriched')
+  getEnrichedFeed(@Req() req: Request, @Query() query: FeedQueryDto) {
+    const { userId } = req.user as { userId: string };
+    return this.socialService.getEnrichedFeed(userId, query.page, query.limit);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('checkins/:id/react')
+  reactToCheckin(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: ReactCheckinDto,
+  ) {
+    const { userId } = req.user as { userId: string };
+    return this.socialService.reactToCheckin(userId, id, dto.emoji);
   }
 
   @UseGuards(JwtAuthGuard)

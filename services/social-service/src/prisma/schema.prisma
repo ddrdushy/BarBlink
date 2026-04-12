@@ -46,3 +46,40 @@ model Comment {
 
   @@map("comments")
 }
+
+model Story {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  venueId   String?  @map("venue_id") @db.Uuid
+  mediaUrl  String   @map("media_url")
+  mediaType String   @map("media_type") @db.VarChar(10)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz()
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  views StoryView[]
+
+  @@map("stories")
+}
+
+model StoryView {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storyId  String   @map("story_id") @db.Uuid
+  viewerId String   @map("viewer_id") @db.Uuid
+  viewedAt DateTime @default(now()) @map("viewed_at") @db.Timestamptz()
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
+  @@map("story_views")
+}
+
+model CheckinReaction {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  checkinId String   @map("checkin_id") @db.Uuid
+  emoji     String   @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([userId, checkinId])
+  @@map("checkin_reactions")
+}
