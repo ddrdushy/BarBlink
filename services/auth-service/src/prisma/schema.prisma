@@ -93,3 +93,49 @@ model SettingsAuditLog {
 
   @@map("settings_audit_log")
 }
+
+model VendorAccount {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String    @unique @db.VarChar(254)
+  passwordHash    String    @map("password_hash")
+  businessName    String    @map("business_name") @db.VarChar(100)
+  contactName     String    @map("contact_name") @db.VarChar(100)
+  phone           String    @db.VarChar(20)
+  businessType    String    @map("business_type") @db.VarChar(50)
+  businessAddress String?   @map("business_address")
+  instagramUrl    String?   @map("instagram_url")
+  websiteUrl      String?   @map("website_url")
+  adminMessage    String?   @map("admin_message")
+  venueId         String?   @map("venue_id") @db.Uuid
+  status          String    @default("pending") @db.VarChar(20)
+  rejectionReason String?   @map("rejection_reason")
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz()
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("vendor_accounts")
+}
+
+model DjAccount {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email            String    @unique @db.VarChar(254)
+  passwordHash     String    @map("password_hash")
+  stageName        String    @map("stage_name") @db.VarChar(100)
+  djType           String    @map("dj_type") @db.VarChar(20)
+  genres           String[]  @default([])
+  bio              String?
+  instagramUrl     String?   @map("instagram_url")
+  phone            String?   @db.VarChar(20)
+  djProfileId      String?   @map("dj_profile_id") @db.Uuid
+  claimType        String    @map("claim_type") @db.VarChar(10)
+  claimedProfileId String?   @map("claimed_profile_id") @db.Uuid
+  status           String    @default("pending") @db.VarChar(20)
+  rejectionReason  String?   @map("rejection_reason")
+  approvedBy       String?   @map("approved_by") @db.Uuid
+  approvedAt       DateTime? @map("approved_at") @db.Timestamptz()
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("dj_accounts")
+}

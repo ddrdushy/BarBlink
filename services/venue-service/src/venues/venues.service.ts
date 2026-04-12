@@ -3,6 +3,7 @@ import { Prisma } from '../prisma/generated';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { UpdateVenueDto } from './dto/update-venue.dto';
+import { VendorUpdateVenueDto } from './dto/vendor-update-venue.dto';
 import { ListVenuesQueryDto } from './dto/list-venues-query.dto';
 
 @Injectable()
@@ -59,8 +60,18 @@ export class VenuesService {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
+    // Extract Instagram handle from URL
+    const instagramHandle = dto.instagramUrl
+      ? dto.instagramUrl.replace(/\/$/, '').split('/').pop()
+      : dto.instagramHandle;
+
     const venue = await this.prisma.venue.create({
-      data: { ...dto, slug },
+      data: {
+        ...dto,
+        slug,
+        instagramHandle: instagramHandle || null,
+        status: 'active',
+      },
     });
     this.publishEvent('venue.created', { venueId: venue.id });
     return venue;
@@ -166,6 +177,71 @@ export class VenuesService {
       venueId,
       averageRating: result._avg.overallRating ?? null,
       reviewCount: result._count.id,
+    };
+  }
+
+  // --- Vendor Portal ---
+
+  async getVendorVenue(venueId: string) {
+    const venue = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      include: { photos: { orderBy: { displayOrder: 'asc' } }, hours: true },
+    });
+    if (!venue) throw new NotFoundException('Venue not found');
+    return venue;
+  }
+
+  async updateVendorVenue(venueId: string, dto: VendorUpdateVenueDto) {
+    const venue = await this.prisma.venue.findUnique({ where: { id: venueId } });
+    if (!venue) throw new NotFoundException('Venue not found');
+
+    // Only update the fields vendors are allowed to edit
+    const allowedData: Record<string, unknown> = {};
+    if (dto.description !== undefined) allowedData.description = dto.description;
+    if (dto.barClosesAt !== undefined) allowedData.barClosesAt = dto.barClosesAt;
+    if (dto.kitchenClosesAt !== undefined) allowedData.kitchenClosesAt = dto.kitchenClosesAt;
+    if (dto.phone !== undefined) allowedData.phone = dto.phone;
+    if (dto.websiteUrl !== undefined) allowedData.websiteUrl = dto.websiteUrl;
+    if (dto.coverPhotoUrl !== undefined) allowedData.coverPhotoUrl = dto.coverPhotoUrl;
+
+    return this.prisma.venue.update({ where: { id: venueId }, data: allowedData });
+  }
+
+  async getVendorVenueReviews(venueId: string, page = 1, limit = 20) {
+    const venue = await this.prisma.venue.findUnique({ where: { id: venueId } });
+    if (!venue) throw new NotFoundException('Venue not found');
+
+    const [items, total] = await Promise.all([
+      this.prisma.venueReview.findMany({
+        where: { venueId },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.venueReview.count({ where: { venueId } }),
+    ]);
+
+    return { items, total, page, totalPages: Math.ceil(total / limit) };
+  }
+
+  async getVendorVenueStats(venueId: string) {
+    const venue = await this.prisma.venue.findUnique({ where: { id: venueId } });
+    if (!venue) throw new NotFoundException('Venue not found');
+
+    const [followerCount, ratingResult] = await Promise.all([
+      this.prisma.venueFollow.count({ where: { venueId } }),
+      this.prisma.venueReview.aggregate({
+        where: { venueId },
+        _avg: { overallRating: true },
+        _count: { id: true },
+      }),
+    ]);
+
+    return {
+      venueId,
+      followerCount,
+      averageRating: ratingResult._avg.overallRating ?? null,
+      reviewCount: ratingResult._count.id,
     };
   }
 

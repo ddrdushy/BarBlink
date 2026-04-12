@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsArray, Min, Max, Length } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsArray, Matches, Min, Max, Length } from 'class-validator';
 
 export class CreateVenueDto {
   @IsString()
@@ -27,14 +27,12 @@ export class CreateVenueDto {
   @IsString()
   address?: string;
 
-  @IsOptional()
   @IsString()
-  area?: string;
+  area!: string;
 
-  @IsOptional()
   @IsString()
   @Length(2, 2)
-  country?: string;
+  country!: string;
 
   @IsOptional()
   @IsNumber()
@@ -44,13 +42,18 @@ export class CreateVenueDto {
   @IsNumber()
   lng?: number;
 
+  @IsString()
+  @Matches(/^https?:\/\/(www\.)?instagram\.com\/[a-zA-Z0-9._]+\/?$/, {
+    message: 'Must be a valid Instagram URL',
+  })
+  instagramUrl!: string;
+
   @IsOptional()
   @IsString()
   instagramHandle?: string;
 
-  @IsOptional()
   @IsString()
-  barClosesAt?: string;
+  barClosesAt!: string;
 
   @IsOptional()
   @IsString()
@@ -62,9 +65,9 @@ export class CreateVenueDto {
   @Max(4)
   priceRange?: number;
 
-  @IsOptional()
   @IsNumber()
-  crowdCapacity?: number;
+  @Min(1)
+  crowdCapacity!: number;
 
   @IsOptional()
   @IsNumber()

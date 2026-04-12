@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@nestjs/common": "^10.4.15",
+    "@nestjs/passport": "^10.0.3",
     "@types/node": "^22.10.5",
     "typescript": "^5.6.3"
   }

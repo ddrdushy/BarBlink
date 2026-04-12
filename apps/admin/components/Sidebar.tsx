@@ -31,6 +31,13 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: 'REGISTRATIONS',
+    items: [
+      { href: '/vendor-applications', label: 'Vendor Apps', icon: '🏛️', badge: true },
+      { href: '/dj-applications', label: 'DJ Apps', icon: '🎵', badge: true },
+    ],
+  },
+  {
     label: 'PLATFORM',
     items: [
       { href: '/scraper', label: 'Scraper Status', icon: '🔄', badge: true },

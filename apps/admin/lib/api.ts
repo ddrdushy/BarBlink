@@ -40,8 +40,10 @@ async function apiFetch<T>(base: string, path: string, opts: {
 }
 
 // Auth
-export const authPost = <T>(path: string, body: Record<string, unknown>) =>
-  apiFetch<T>(AUTH_API, path, { method: 'POST', body });
+export const authGet = <T>(path: string, token: string) =>
+  apiFetch<T>(AUTH_API, path, { token });
+export const authPost = <T>(path: string, body: Record<string, unknown>, token?: string) =>
+  apiFetch<T>(AUTH_API, path, { method: 'POST', body, token });
 
 // User service
 export const userGet = <T>(path: string, token: string) =>
