@@ -248,6 +248,12 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_social
       JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-barblink}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-barblink_dev_minio}
+      MINIO_BUCKET: barblink-media
+      MINIO_PUBLIC_URL: http://localhost:9000
       PORT: "3005"
     ports:
       - "${SOCIAL_SERVICE_PORT:-3005}:3005"

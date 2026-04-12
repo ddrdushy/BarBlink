@@ -7,6 +7,8 @@ import { colors, radii, spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { userGet } from '@/lib/api';
 
+interface FollowCounts { followers: number; following: number }
+
 interface UserProfile {
   id: string;
   username: string;
@@ -33,14 +35,15 @@ export default function Profile() {
   const router = useRouter();
   const { token, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token) return;
-    userGet<UserProfile>('/users/me', token)
-      .then(setProfile)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      userGet<UserProfile>('/users/me', token).then(setProfile),
+      userGet<FollowCounts>('/users/me/counts', token).then(setCounts).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, [token]);
 
   const handleLogout = async () => {
@@ -76,9 +79,9 @@ export default function Profile() {
 
         <View style={styles.stats}>
           {[
-            { k: '0', v: 'Venues' },
+            { k: String(counts.followers), v: 'Followers' },
+            { k: String(counts.following), v: 'Following' },
             { k: '0', v: 'Check-ins' },
-            { k: '0', v: 'Night streak' },
           ].map((s) => (
             <View key={s.v} style={styles.statCell}>
               <Text style={styles.statK}>{s.k}</Text>

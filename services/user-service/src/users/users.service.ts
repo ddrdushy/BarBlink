@@ -70,6 +70,96 @@ export class UsersService {
     return profile;
   }
 
+  // --- Follow system ---
+
+  async sendFollowRequest(followerId: string, followingId: string) {
+    if (followerId === followingId) {
+      throw new ConflictException('Cannot follow yourself');
+    }
+    const existing = await this.prisma.follow.findUnique({
+      where: { followerId_followingId: { followerId, followingId } },
+    });
+    if (existing) {
+      throw new ConflictException('Follow request already sent');
+    }
+    return this.prisma.follow.create({
+      data: { followerId, followingId },
+    });
+  }
+
+  async unfollow(followerId: string, followingId: string) {
+    await this.prisma.follow.deleteMany({
+      where: { followerId, followingId },
+    });
+    return { message: 'Unfollowed' };
+  }
+
+  async getFollowers(userId: string) {
+    const follows = await this.prisma.follow.findMany({
+      where: { followingId: userId, status: 'accepted' },
+      include: { follower: { select: { id: true, username: true, displayName: true, avatarUrl: true, country: true } } },
+    });
+    return follows.map((f) => f.follower);
+  }
+
+  async getFollowing(userId: string) {
+    const follows = await this.prisma.follow.findMany({
+      where: { followerId: userId, status: 'accepted' },
+      include: { following: { select: { id: true, username: true, displayName: true, avatarUrl: true, country: true } } },
+    });
+    return follows.map((f) => f.following);
+  }
+
+  async getPendingRequests(userId: string) {
+    const follows = await this.prisma.follow.findMany({
+      where: { followingId: userId, status: 'pending' },
+      include: { follower: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+    });
+    return follows.map((f) => ({ id: f.id, ...f.follower, requestedAt: f.createdAt }));
+  }
+
+  async respondToRequest(userId: string, requestId: string, action: string) {
+    const follow = await this.prisma.follow.findFirst({
+      where: { id: requestId, followingId: userId, status: 'pending' },
+    });
+    if (!follow) throw new NotFoundException('Follow request not found');
+
+    if (action === 'accepted') {
+      return this.prisma.follow.update({
+        where: { id: requestId },
+        data: { status: 'accepted' },
+      });
+    } else {
+      return this.prisma.follow.update({
+        where: { id: requestId },
+        data: { status: 'rejected' },
+      });
+    }
+  }
+
+  async getFollowCounts(userId: string) {
+    const [followers, following] = await Promise.all([
+      this.prisma.follow.count({ where: { followingId: userId, status: 'accepted' } }),
+      this.prisma.follow.count({ where: { followerId: userId, status: 'accepted' } }),
+    ]);
+    return { followers, following };
+  }
+
+  async searchUsers(query: string, currentUserId: string) {
+    const users = await this.prisma.profile.findMany({
+      where: {
+        id: { not: currentUserId },
+        OR: [
+          { username: { contains: query, mode: 'insensitive' } },
+          { displayName: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      take: 20,
+      select: { id: true, username: true, displayName: true, avatarUrl: true, country: true },
+    });
+    return users;
+  }
+
   // --- Admin endpoints ---
 
   async adminListUsers(query: { search?: string; page?: number; limit?: number }) {

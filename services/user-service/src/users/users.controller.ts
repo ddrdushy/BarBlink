@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -43,6 +44,64 @@ export class UsersController {
   @Get(':username')
   getByUsername(@Param('username') username: string) {
     return this.usersService.getByUsername(username);
+  }
+
+  // --- Follow system ---
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/follow')
+  follow(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.sendFollowRequest(userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/follow')
+  unfollow(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.unfollow(userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/followers')
+  getFollowers(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.getFollowers(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/following')
+  getFollowing(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.getFollowing(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/requests')
+  getRequests(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.getPendingRequests(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('requests/:id')
+  respondToRequest(@Req() req: Request, @Param('id') id: string, @Body('action') action: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.respondToRequest(userId, id, action);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/counts')
+  getCounts(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.getFollowCounts(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('search')
+  searchUsers(@Req() req: Request, @Query('q') q: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.searchUsers(q || '', userId);
   }
 }
 

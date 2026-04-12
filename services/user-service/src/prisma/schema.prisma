@@ -24,5 +24,28 @@ model Profile {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
+  followers  Follow[] @relation("following")
+  following  Follow[] @relation("follower")
+
   @@map("profiles")
+}
+
+enum FollowStatus {
+  pending
+  accepted
+  rejected
+}
+
+model Follow {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  followerId  String       @map("follower_id") @db.Uuid
+  followingId String       @map("following_id") @db.Uuid
+  status      FollowStatus @default(pending)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+
+  follower  Profile @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following Profile @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
 }
