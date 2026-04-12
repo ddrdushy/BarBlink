@@ -53,25 +53,13 @@ export class AdminAuthService implements OnModuleInit {
       data: { lastLoginAt: new Date() },
     });
 
-    // Issue JWT with admin role
+    // Issue JWT with admin role — longer expiry for admin sessions
     const payload = { sub: admin.id, role: 'admin', name: admin.name };
-    const accessToken = this.jwt.sign(payload, {
-      expiresIn: this.config.get('JWT_ACCESS_EXPIRY', '15m'),
-    });
-
-    // Generate refresh token
-    const refreshToken = require('crypto').randomBytes(40).toString('hex');
-    const tokenHash = await bcrypt.hash(refreshToken, 10);
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
-
-    await this.prisma.refreshToken.create({
-      data: { userId: admin.id, tokenHash, expiresAt },
-    });
+    const accessToken = this.jwt.sign(payload, { expiresIn: '24h' });
 
     return {
       accessToken,
-      refreshToken,
+      refreshToken: accessToken, // admin uses same token as refresh for simplicity
       admin: { id: admin.id, email: admin.email, name: admin.name },
     };
   }
