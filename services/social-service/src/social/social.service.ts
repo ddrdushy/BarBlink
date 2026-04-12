@@ -53,6 +53,11 @@ export class SocialService {
         venueId: p.venueId,
         caption: p.caption,
         mediaUrls: p.mediaUrls,
+        type: p.type,
+        drinkName: p.drinkName,
+        drinkRating: p.drinkRating,
+        originalPostId: p.originalPostId,
+        pollOptions: p.pollOptions,
         createdAt: p.createdAt.toISOString(),
         likeCount: p._count.likes,
         commentCount: p._count.comments,
@@ -70,9 +75,13 @@ export class SocialService {
         userId,
         venueId: dto.venueId,
         caption: dto.caption,
+        type: dto.type || 'photo',
+        drinkName: dto.drinkName,
+        drinkRating: dto.drinkRating,
+        pollOptions: dto.pollOptions ? dto.pollOptions : undefined,
       },
     });
-    this.publishEvent('post.created', { postId: result.id, userId });
+    this.publishEvent('post.created', { postId: result.id, userId, type: result.type });
     return result;
   }
 
@@ -88,6 +97,11 @@ export class SocialService {
 
     return {
       ...post,
+      type: post.type,
+      drinkName: post.drinkName,
+      drinkRating: post.drinkRating,
+      originalPostId: post.originalPostId,
+      pollOptions: post.pollOptions,
       likeCount: post._count.likes,
       commentCount: post._count.comments,
       isLikedByMe: userId ? (post.likes as { id: string }[]).length > 0 : false,
@@ -144,6 +158,143 @@ export class SocialService {
     return this.prisma.comment.create({
       data: { postId, userId, body: dto.body },
     });
+  }
+
+  // --- Poll voting ---
+
+  async votePoll(userId: string, postId: string, optionIdx: number) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.type !== 'poll') throw new ForbiddenException('Post is not a poll');
+
+    const options = post.pollOptions as string[];
+    if (optionIdx < 0 || optionIdx >= options.length) {
+      throw new ForbiddenException('Invalid option index');
+    }
+
+    await this.prisma.pollVote.upsert({
+      where: { postId_userId: { postId, userId } },
+      create: { postId, userId, optionIdx },
+      update: { optionIdx },
+    });
+    return { message: 'Vote recorded' };
+  }
+
+  async getPollResults(postId: string) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.type !== 'poll') throw new ForbiddenException('Post is not a poll');
+
+    const options = post.pollOptions as string[];
+    const votes = await this.prisma.pollVote.groupBy({
+      by: ['optionIdx'],
+      where: { postId },
+      _count: { id: true },
+    });
+
+    const votesMap = new Map(votes.map((v) => [v.optionIdx, v._count.id]));
+    const totalVotes = votes.reduce((sum, v) => sum + v._count.id, 0);
+
+    return {
+      postId,
+      options: options.map((label, idx) => ({
+        idx,
+        label,
+        votes: votesMap.get(idx) || 0,
+      })),
+      totalVotes,
+    };
+  }
+
+  // --- Repost ---
+
+  async repost(userId: string, originalPostId: string, caption?: string) {
+    const original = await this.prisma.post.findUnique({ where: { id: originalPostId } });
+    if (!original || !original.isActive) throw new NotFoundException('Original post not found');
+
+    const result = await this.prisma.post.create({
+      data: {
+        userId,
+        type: 'repost',
+        originalPostId,
+        caption: caption || null,
+      },
+    });
+    this.publishEvent('post.reposted', { postId: result.id, originalPostId, userId });
+    return result;
+  }
+
+  // --- Bookmarks ---
+
+  async bookmarkPost(userId: string, postId: string) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+
+    await this.prisma.bookmark.upsert({
+      where: { userId_postId: { userId, postId } },
+      create: { userId, postId },
+      update: {},
+    });
+    return { message: 'Bookmarked' };
+  }
+
+  async unbookmarkPost(userId: string, postId: string) {
+    await this.prisma.bookmark.deleteMany({
+      where: { userId, postId },
+    });
+    return { message: 'Unbookmarked' };
+  }
+
+  async getBookmarks(userId: string, page = 1, limit = 20) {
+    const [items, total] = await Promise.all([
+      this.prisma.bookmark.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.bookmark.count({ where: { userId } }),
+    ]);
+
+    // Fetch the actual posts for these bookmarks
+    const postIds = items.map((b) => b.postId);
+    const posts = await this.prisma.post.findMany({
+      where: { id: { in: postIds }, isActive: true },
+      include: {
+        _count: { select: { likes: true, comments: true } },
+        likes: { where: { userId }, select: { id: true } },
+      },
+    });
+
+    const postMap = new Map(posts.map((p) => [p.id, p]));
+
+    return {
+      items: items
+        .map((b) => {
+          const p = postMap.get(b.postId);
+          if (!p) return null;
+          return {
+            bookmarkId: b.id,
+            bookmarkedAt: b.createdAt.toISOString(),
+            post: {
+              id: p.id,
+              userId: p.userId,
+              venueId: p.venueId,
+              caption: p.caption,
+              type: p.type,
+              mediaUrls: p.mediaUrls,
+              createdAt: p.createdAt.toISOString(),
+              likeCount: p._count.likes,
+              commentCount: p._count.comments,
+              isLikedByMe: p.likes.length > 0,
+            },
+          };
+        })
+        .filter(Boolean),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   // --- Admin endpoints ---

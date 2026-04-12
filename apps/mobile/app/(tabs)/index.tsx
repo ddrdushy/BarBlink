@@ -60,6 +60,9 @@ interface HeroPostItem extends FeedItemBase {
   likeCount: number;
   commentCount: number;
   isLikedByMe: boolean;
+  postType?: string;
+  drinkName?: string | null;
+  drinkRating?: number | null;
 }
 
 interface PostItem extends FeedItemBase {
@@ -73,6 +76,9 @@ interface PostItem extends FeedItemBase {
   likeCount: number;
   commentCount: number;
   isLikedByMe: boolean;
+  postType?: string;
+  drinkName?: string | null;
+  drinkRating?: number | null;
 }
 
 interface CheckinPairItem extends FeedItemBase {
@@ -139,6 +145,7 @@ export default function FeedScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
 
   const fetchFeed = useCallback(async () => {
     if (!token) return;
@@ -212,6 +219,33 @@ export default function FeedScreen() {
     }
   };
 
+  /* --- Bookmark toggle --- */
+  const toggleBookmark = async (itemId: string) => {
+    if (!token) return;
+    const was = bookmarked.has(itemId);
+    setBookmarked((prev) => {
+      const next = new Set(prev);
+      if (was) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+    try {
+      if (was) {
+        await socialDelete(`/posts/${itemId}/bookmark`, token);
+      } else {
+        await socialPost(`/posts/${itemId}/bookmark`, {}, token);
+      }
+    } catch {
+      // revert
+      setBookmarked((prev) => {
+        const next = new Set(prev);
+        if (was) next.add(itemId);
+        else next.delete(itemId);
+        return next;
+      });
+    }
+  };
+
   /* --- Render helpers --- */
 
   const renderHeroPost = (item: HeroPostItem) => (
@@ -236,6 +270,11 @@ export default function FeedScreen() {
           </Text>
         </Pressable>
         <Text style={styles.heroStat}>{'\uD83D\uDCAC'} {item.commentCount}</Text>
+        <Pressable onPress={() => toggleBookmark(item.id)}>
+          <Text style={styles.heroStat}>
+            {bookmarked.has(item.id) ? '\uD83D\uDD16' : '\uD83D\uDCC4'}
+          </Text>
+        </Pressable>
       </View>
     </Pressable>
   );
@@ -263,6 +302,11 @@ export default function FeedScreen() {
           </Text>
         </Pressable>
         <Text style={styles.postStat}>{'\uD83D\uDCAC'} {item.commentCount}</Text>
+        <Pressable onPress={() => toggleBookmark(item.id)}>
+          <Text style={styles.postStat}>
+            {bookmarked.has(item.id) ? '\uD83D\uDD16' : '\uD83D\uDCC4'}
+          </Text>
+        </Pressable>
       </View>
     </Pressable>
   );

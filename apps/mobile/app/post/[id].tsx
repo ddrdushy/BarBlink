@@ -52,6 +52,7 @@ export default function PostDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   useEffect(() => {
     if (!id || !token) return;
@@ -73,6 +74,18 @@ export default function PostDetailScreen() {
       else await socialPost(`/posts/${post.id}/like`, {}, token);
     } catch {
       setPost({ ...post, isLikedByMe: was, likeCount: post.likeCount });
+    }
+  };
+
+  const toggleBookmark = async () => {
+    if (!post || !token) return;
+    const was = isBookmarked;
+    setIsBookmarked(!was);
+    try {
+      if (was) await socialDelete(`/posts/${post.id}/bookmark`, token);
+      else await socialPost(`/posts/${post.id}/bookmark`, {}, token);
+    } catch {
+      setIsBookmarked(was);
     }
   };
 
@@ -137,6 +150,11 @@ export default function PostDetailScreen() {
                   </Text>
                 </Pressable>
                 <Text style={styles.actionText}>💬 {post.commentCount} comments</Text>
+                <Pressable onPress={toggleBookmark} style={styles.actionBtn}>
+                  <Text style={styles.actionText}>
+                    {isBookmarked ? '\uD83D\uDD16' : '\uD83D\uDCC4'} Save
+                  </Text>
+                </Pressable>
               </View>
               <View style={styles.divider} />
               {comments.length === 0 && (

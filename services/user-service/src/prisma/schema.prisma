@@ -49,3 +49,22 @@ model Follow {
   @@unique([followerId, followingId])
   @@map("follows")
 }
+
+model TrustedCircle {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  friendId  String   @map("friend_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([userId, friendId])
+  @@map("trusted_circle")
+}
+
+model QrCode {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  code      String   @unique @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("qr_codes")
+}

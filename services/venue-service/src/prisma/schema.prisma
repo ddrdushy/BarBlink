@@ -72,3 +72,13 @@ model VenueHour {
 
   @@map("venue_hours")
 }
+
+model VenueFollow {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  venueId   String   @map("venue_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([userId, venueId])
+  @@map("venue_follows")
+}

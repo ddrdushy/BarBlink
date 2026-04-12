@@ -197,6 +197,152 @@ export class UsersService {
     return { totalUsers: total };
   }
 
+  // --- Going Tonight ---
+
+  async setGoingTonight(userId: string, venueId: string) {
+    const profile = await this.prisma.profile.findUnique({ where: { id: userId } });
+    if (!profile) throw new NotFoundException('Profile not found');
+    return this.prisma.profile.update({
+      where: { id: userId },
+      data: { goingTonight: true, goingVenueId: venueId },
+    });
+  }
+
+  async clearGoingTonight(userId: string) {
+    const profile = await this.prisma.profile.findUnique({ where: { id: userId } });
+    if (!profile) throw new NotFoundException('Profile not found');
+    return this.prisma.profile.update({
+      where: { id: userId },
+      data: { goingTonight: false, goingVenueId: null },
+    });
+  }
+
+  async getGoingTonightUsers(country?: string) {
+    const where: any = { goingTonight: true };
+    if (country) where.country = country;
+    return this.prisma.profile.findMany({
+      where,
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        avatarUrl: true,
+        country: true,
+        goingVenueId: true,
+      },
+    });
+  }
+
+  // --- Trusted Circle + Home Safe ---
+
+  async getTrustedCircle(userId: string) {
+    const entries = await this.prisma.trustedCircle.findMany({
+      where: { userId },
+    });
+    if (entries.length === 0) return [];
+    const friendIds = entries.map((e) => e.friendId);
+    return this.prisma.profile.findMany({
+      where: { id: { in: friendIds } },
+      select: { id: true, username: true, displayName: true, avatarUrl: true },
+    });
+  }
+
+  async addToTrustedCircle(userId: string, friendId: string) {
+    if (userId === friendId) {
+      throw new ConflictException('Cannot add yourself to trusted circle');
+    }
+    const existing = await this.prisma.trustedCircle.findUnique({
+      where: { userId_friendId: { userId, friendId } },
+    });
+    if (existing) {
+      throw new ConflictException('Already in trusted circle');
+    }
+    return this.prisma.trustedCircle.create({
+      data: { userId, friendId },
+    });
+  }
+
+  async removeFromTrustedCircle(userId: string, friendId: string) {
+    await this.prisma.trustedCircle.deleteMany({
+      where: { userId, friendId },
+    });
+    return { message: 'Removed from trusted circle' };
+  }
+
+  async sendHomeSafe(userId: string) {
+    const profile = await this.prisma.profile.findUnique({ where: { id: userId } });
+    if (!profile) throw new NotFoundException('Profile not found');
+    await this.prisma.profile.update({
+      where: { id: userId },
+      data: { isHomeSafe: true },
+    });
+    this.publishEvent('user.home_safe', { userId, timestamp: new Date().toISOString() });
+    return { message: 'Home safe status sent' };
+  }
+
+  // --- QR Code Connect ---
+
+  async getOrCreateQrCode(userId: string) {
+    const existing = await this.prisma.qrCode.findUnique({ where: { userId } });
+    if (existing) return existing;
+    const crypto = require('crypto');
+    const code = crypto.randomBytes(4).toString('hex');
+    return this.prisma.qrCode.create({
+      data: { userId, code },
+    });
+  }
+
+  async connectViaQr(code: string, currentUserId: string) {
+    const qr = await this.prisma.qrCode.findUnique({ where: { code } });
+    if (!qr) throw new NotFoundException('QR code not found');
+    if (qr.userId === currentUserId) {
+      throw new ConflictException('Cannot connect with yourself');
+    }
+    return this.sendFollowRequest(currentUserId, qr.userId);
+  }
+
+  // --- People You May Know ---
+
+  async getSuggestions(userId: string, country?: string) {
+    // Find who I follow (accepted)
+    const myFollowing = await this.prisma.follow.findMany({
+      where: { followerId: userId, status: 'accepted' },
+      select: { followingId: true },
+    });
+    const myFollowingIds = myFollowing.map((f) => f.followingId);
+    if (myFollowingIds.length === 0) return [];
+
+    // Find who they follow (2nd degree) that I don't already follow
+    const alreadyFollowing = await this.prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+    const excludeIds = [userId, ...alreadyFollowing.map((f) => f.followingId)];
+
+    const where: any = {
+      followerId: { in: myFollowingIds },
+      followingId: { notIn: excludeIds },
+      status: 'accepted',
+    };
+
+    const secondDegree = await this.prisma.follow.findMany({
+      where,
+      select: { followingId: true },
+    });
+
+    const suggestedIds = [...new Set(secondDegree.map((f) => f.followingId))];
+    if (suggestedIds.length === 0) return [];
+
+    const profileWhere: any = { id: { in: suggestedIds } };
+    if (country) profileWhere.country = country;
+
+    return this.prisma.profile.findMany({
+      where: profileWhere,
+      take: 10,
+      select: { id: true, username: true, displayName: true, avatarUrl: true, country: true },
+    });
+  }
+
   private async publishEvent(topic: string, payload: Record<string, unknown>) {
     try {
       const { Kafka } = require('kafkajs');

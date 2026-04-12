@@ -23,9 +23,12 @@ interface VenueOption {
   area: string | null;
 }
 
+type PostType = 'photo' | 'drink_rating' | 'poll';
+
 export default function CreatePostScreen() {
   const router = useRouter();
   const { token } = useAuth();
+  const [postType, setPostType] = useState<PostType>('photo');
   const [caption, setCaption] = useState('');
   const [venue, setVenue] = useState<VenueOption | null>(null);
   const [venues, setVenues] = useState<VenueOption[]>([]);
@@ -33,6 +36,13 @@ export default function CreatePostScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Drink rating fields
+  const [drinkName, setDrinkName] = useState('');
+  const [drinkRating, setDrinkRating] = useState(0);
+
+  // Poll fields
+  const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
 
   useEffect(() => {
     if (!token) return;
@@ -55,16 +65,49 @@ export default function CreatePostScreen() {
     }
   };
 
+  const updatePollOption = (idx: number, text: string) => {
+    setPollOptions((prev) => prev.map((o, i) => (i === idx ? text : o)));
+  };
+
+  const addPollOption = () => {
+    if (pollOptions.length < 4) setPollOptions((prev) => [...prev, '']);
+  };
+
+  const removePollOption = (idx: number) => {
+    if (pollOptions.length > 2) setPollOptions((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const canPost = () => {
+    if (!caption.trim() && postType !== 'poll') return false;
+    if (postType === 'drink_rating' && (!drinkName.trim() || drinkRating === 0)) return false;
+    if (postType === 'poll') {
+      const filled = pollOptions.filter((o) => o.trim());
+      if (filled.length < 2) return false;
+      if (!caption.trim()) return false;
+    }
+    return true;
+  };
+
   const handlePost = async () => {
-    if (!token || !caption.trim()) return;
+    if (!token || !canPost()) return;
     setLoading(true);
     setError('');
     try {
-      const body: Record<string, unknown> = { caption: caption.trim() };
+      const body: Record<string, unknown> = {
+        caption: caption.trim(),
+        type: postType,
+      };
       if (venue) body.venueId = venue.id;
-      if (imageUri) {
+      if (postType === 'photo' && imageUri) {
         const url = await uploadImage(imageUri, token);
         body.mediaUrls = [url];
+      }
+      if (postType === 'drink_rating') {
+        body.drinkName = drinkName.trim();
+        body.drinkRating = drinkRating;
+      }
+      if (postType === 'poll') {
+        body.pollOptions = pollOptions.filter((o) => o.trim());
       }
       await socialPost('/posts', body, token);
       router.back();
@@ -85,25 +128,95 @@ export default function CreatePostScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <Pressable style={styles.photoBtn} onPress={pickImage}>
-        {imageUri ? (
-          <View style={styles.photoPreviewRow}>
-            <Image source={{ uri: imageUri }} style={styles.photoThumb} />
-            <Text style={styles.photoBtnText}>Change Photo</Text>
-            <Pressable hitSlop={12} onPress={() => setImageUri(null)}>
-              <Text style={styles.photoRemove}>{'\u2715'}</Text>
-            </Pressable>
+      {/* Post type selector */}
+      <View style={styles.typeRow}>
+        {(['photo', 'drink_rating', 'poll'] as PostType[]).map((t) => (
+          <Pressable
+            key={t}
+            style={[styles.typeChip, postType === t && styles.typeChipActive]}
+            onPress={() => setPostType(t)}
+          >
+            <Text style={[styles.typeChipText, postType === t && styles.typeChipTextActive]}>
+              {t === 'photo' ? 'Photo' : t === 'drink_rating' ? 'Drink Rating' : 'Poll'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Photo picker — only for photo type */}
+      {postType === 'photo' && (
+        <Pressable style={styles.photoBtn} onPress={pickImage}>
+          {imageUri ? (
+            <View style={styles.photoPreviewRow}>
+              <Image source={{ uri: imageUri }} style={styles.photoThumb} />
+              <Text style={styles.photoBtnText}>Change Photo</Text>
+              <Pressable hitSlop={12} onPress={() => setImageUri(null)}>
+                <Text style={styles.photoRemove}>{'\u2715'}</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Text style={styles.photoBtnText}>{'\uD83D\uDCF7'} Add Photo</Text>
+          )}
+        </Pressable>
+      )}
+
+      {/* Drink rating fields */}
+      {postType === 'drink_rating' && (
+        <View style={styles.drinkSection}>
+          <TextInput
+            style={styles.drinkInput}
+            value={drinkName}
+            onChangeText={setDrinkName}
+            placeholder="Drink name"
+            placeholderTextColor={colors.inkFaint}
+            maxLength={100}
+          />
+          <View style={styles.starRow}>
+            <Text style={styles.starLabel}>Rating:</Text>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Pressable key={n} onPress={() => setDrinkRating(n)} hitSlop={6}>
+                <Text style={[styles.star, n <= drinkRating && styles.starActive]}>
+                  {n <= drinkRating ? '\u2605' : '\u2606'}
+                </Text>
+              </Pressable>
+            ))}
           </View>
-        ) : (
-          <Text style={styles.photoBtnText}>{'\uD83D\uDCF7'} Add Photo</Text>
-        )}
-      </Pressable>
+        </View>
+      )}
+
+      {/* Poll options */}
+      {postType === 'poll' && (
+        <View style={styles.pollSection}>
+          {pollOptions.map((opt, idx) => (
+            <View key={idx} style={styles.pollOptionRow}>
+              <TextInput
+                style={styles.pollInput}
+                value={opt}
+                onChangeText={(t) => updatePollOption(idx, t)}
+                placeholder={`Option ${idx + 1}`}
+                placeholderTextColor={colors.inkFaint}
+                maxLength={80}
+              />
+              {pollOptions.length > 2 && (
+                <Pressable hitSlop={8} onPress={() => removePollOption(idx)}>
+                  <Text style={styles.pollRemove}>{'\u2715'}</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
+          {pollOptions.length < 4 && (
+            <Pressable style={styles.pollAddBtn} onPress={addPollOption}>
+              <Text style={styles.pollAddText}>+ Add option</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       <TextInput
         style={styles.captionInput}
         value={caption}
         onChangeText={setCaption}
-        placeholder="What's happening tonight?"
+        placeholder={postType === 'poll' ? 'Ask a question...' : "What's happening tonight?"}
         placeholderTextColor={colors.inkFaint}
         multiline
         maxLength={500}
@@ -123,7 +236,7 @@ export default function CreatePostScreen() {
       <NeonButton
         label="Post"
         onPress={handlePost}
-        disabled={!caption.trim()}
+        disabled={!canPost()}
         loading={loading}
       />
 
@@ -165,6 +278,97 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing.lg },
   cancel: { color: colors.inkMute, fontSize: 15, fontWeight: '600' },
   title: { color: colors.ink, fontSize: 18, fontWeight: '800' },
+  typeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: spacing.md,
+  },
+  typeChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: colors.bgSurface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  typeChipActive: {
+    backgroundColor: colors.neonGhost,
+    borderColor: colors.neonBorder,
+  },
+  typeChipText: {
+    color: colors.inkMute,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  typeChipTextActive: {
+    color: colors.neonBright,
+  },
+  drinkSection: {
+    gap: 12,
+    marginBottom: spacing.md,
+  },
+  drinkInput: {
+    backgroundColor: colors.bgSurface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: colors.ink,
+    fontSize: 15,
+  },
+  starRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  starLabel: {
+    color: colors.inkMute,
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  star: {
+    fontSize: 28,
+    color: colors.inkFaint,
+  },
+  starActive: {
+    color: '#FFD700',
+  },
+  pollSection: {
+    gap: 8,
+    marginBottom: spacing.md,
+  },
+  pollOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pollInput: {
+    flex: 1,
+    backgroundColor: colors.bgSurface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: colors.ink,
+    fontSize: 14,
+  },
+  pollRemove: {
+    color: colors.inkMute,
+    fontSize: 14,
+    padding: 4,
+  },
+  pollAddBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  pollAddText: {
+    color: colors.neon,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   photoBtn: {
     backgroundColor: colors.bgSurface,
     borderRadius: 12,

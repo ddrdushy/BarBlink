@@ -41,26 +41,7 @@ export class UsersController {
     return this.usersService.updateProfile(userId, dto);
   }
 
-  @Get(':username')
-  getByUsername(@Param('username') username: string) {
-    return this.usersService.getByUsername(username);
-  }
-
   // --- Follow system ---
-
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/follow')
-  follow(@Req() req: Request, @Param('id') id: string) {
-    const { userId } = req.user as { userId: string };
-    return this.usersService.sendFollowRequest(userId, id);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Delete(':id/follow')
-  unfollow(@Req() req: Request, @Param('id') id: string) {
-    const { userId } = req.user as { userId: string };
-    return this.usersService.unfollow(userId, id);
-  }
 
   @UseGuards(JwtAuthGuard)
   @Get('me/followers')
@@ -84,17 +65,86 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Put('requests/:id')
-  respondToRequest(@Req() req: Request, @Param('id') id: string, @Body('action') action: string) {
-    const { userId } = req.user as { userId: string };
-    return this.usersService.respondToRequest(userId, id, action);
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Get('me/counts')
   getCounts(@Req() req: Request) {
     const { userId } = req.user as { userId: string };
     return this.usersService.getFollowCounts(userId);
+  }
+
+  // --- Going Tonight ---
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/going-tonight')
+  setGoingTonight(@Req() req: Request, @Body('venueId') venueId: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.setGoingTonight(userId, venueId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('me/going-tonight')
+  clearGoingTonight(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.clearGoingTonight(userId);
+  }
+
+  @Get('going-tonight')
+  getGoingTonightUsers(@Query('country') country?: string) {
+    return this.usersService.getGoingTonightUsers(country);
+  }
+
+  // --- Trusted Circle + Home Safe ---
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/trusted-circle')
+  getTrustedCircle(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.getTrustedCircle(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('trusted-circle/:id')
+  addToTrustedCircle(@Req() req: Request, @Param('id') friendId: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.addToTrustedCircle(userId, friendId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('trusted-circle/:id')
+  removeFromTrustedCircle(@Req() req: Request, @Param('id') friendId: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.removeFromTrustedCircle(userId, friendId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/home-safe')
+  sendHomeSafe(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.sendHomeSafe(userId);
+  }
+
+  // --- QR Code Connect ---
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/qr')
+  getQrCode(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.getOrCreateQrCode(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('qr/connect')
+  connectViaQr(@Req() req: Request, @Body('code') code: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.connectViaQr(code, userId);
+  }
+
+  // --- People You May Know ---
+
+  @UseGuards(JwtAuthGuard)
+  @Get('suggestions')
+  getSuggestions(@Req() req: Request, @Query('country') country?: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.getSuggestions(userId, country);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -102,6 +152,34 @@ export class UsersController {
   searchUsers(@Req() req: Request, @Query('q') q: string) {
     const { userId } = req.user as { userId: string };
     return this.usersService.searchUsers(q || '', userId);
+  }
+
+  // --- Parameterized routes (must be last to avoid swallowing static routes) ---
+
+  @Get(':username')
+  getByUsername(@Param('username') username: string) {
+    return this.usersService.getByUsername(username);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/follow')
+  follow(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.sendFollowRequest(userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/follow')
+  unfollow(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.unfollow(userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('requests/:id')
+  respondToRequest(@Req() req: Request, @Param('id') id: string, @Body('action') action: string) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.respondToRequest(userId, id, action);
   }
 }
 

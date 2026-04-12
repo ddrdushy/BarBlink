@@ -9,13 +9,18 @@ datasource db {
 }
 
 model Post {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  venueId   String?  @map("venue_id") @db.Uuid
-  caption   String?
-  mediaUrls String[] @default([]) @map("media_urls")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  venueId        String?  @map("venue_id") @db.Uuid
+  caption        String?
+  mediaUrls      String[] @default([]) @map("media_urls")
+  isActive       Boolean  @default(true) @map("is_active")
+  type           String   @default("photo") @db.VarChar(20)
+  drinkName      String?  @map("drink_name") @db.VarChar(100)
+  drinkRating    Int?     @map("drink_rating") @db.SmallInt
+  originalPostId String?  @map("original_post_id") @db.Uuid
+  pollOptions    Json?    @map("poll_options") @db.JsonB
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   likes    Like[]
   comments Comment[]
@@ -71,6 +76,27 @@ model StoryView {
 
   @@unique([storyId, viewerId])
   @@map("story_views")
+}
+
+model PollVote {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  optionIdx Int      @map("option_idx") @db.SmallInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([postId, userId])
+  @@map("poll_votes")
+}
+
+model Bookmark {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([userId, postId])
+  @@map("bookmarks")
 }
 
 model CheckinReaction {

@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { VenuesService } from './venues.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { UpdateVenueDto } from './dto/update-venue.dto';
 import { ListVenuesQueryDto } from './dto/list-venues-query.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Request } from 'express';
 
 @Controller()
 export class VenuesController {
@@ -15,6 +16,14 @@ export class VenuesController {
     return this.venuesService.list(query);
   }
 
+  // Venue Follow — static routes before :id wildcard
+  @UseGuards(JwtAuthGuard)
+  @Get('venues/me/following')
+  getFollowedVenues(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.venuesService.getFollowedVenues(userId);
+  }
+
   @Get('venues/:id')
   getById(@Param('id') id: string) {
     return this.venuesService.getById(id);
@@ -23,6 +32,25 @@ export class VenuesController {
   @Get('venues/:id/photos')
   getPhotos(@Param('id') id: string) {
     return this.venuesService.getPhotos(id);
+  }
+
+  @Get('venues/:id/followers/count')
+  getVenueFollowerCount(@Param('id') id: string) {
+    return this.venuesService.getVenueFollowerCount(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('venues/:id/follow')
+  followVenue(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as { userId: string };
+    return this.venuesService.followVenue(userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('venues/:id/follow')
+  unfollowVenue(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as { userId: string };
+    return this.venuesService.unfollowVenue(userId, id);
   }
 
   // Admin endpoints (JWT protected)

@@ -74,4 +74,42 @@ export class VenuesService {
     const total = await this.prisma.venue.count({ where: { status: 'active' } });
     return { totalVenues: total };
   }
+
+  // --- Venue Follow ---
+
+  async followVenue(userId: string, venueId: string) {
+    const venue = await this.prisma.venue.findUnique({ where: { id: venueId } });
+    if (!venue) throw new NotFoundException('Venue not found');
+    const existing = await this.prisma.venueFollow.findUnique({
+      where: { userId_venueId: { userId, venueId } },
+    });
+    if (existing) return existing;
+    return this.prisma.venueFollow.create({
+      data: { userId, venueId },
+    });
+  }
+
+  async unfollowVenue(userId: string, venueId: string) {
+    await this.prisma.venueFollow.deleteMany({
+      where: { userId, venueId },
+    });
+    return { message: 'Unfollowed venue' };
+  }
+
+  async getFollowedVenues(userId: string) {
+    const follows = await this.prisma.venueFollow.findMany({
+      where: { userId },
+      select: { venueId: true },
+    });
+    const venueIds = follows.map((f) => f.venueId);
+    if (venueIds.length === 0) return [];
+    return this.prisma.venue.findMany({
+      where: { id: { in: venueIds } },
+    });
+  }
+
+  async getVenueFollowerCount(venueId: string) {
+    const count = await this.prisma.venueFollow.count({ where: { venueId } });
+    return { venueId, followerCount: count };
+  }
 }

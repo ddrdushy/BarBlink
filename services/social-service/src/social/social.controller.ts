@@ -7,6 +7,8 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { FeedQueryDto } from './dto/feed-query.dto';
 import { ReactCheckinDto } from './dto/react-checkin.dto';
+import { VotePollDto } from './dto/vote-poll.dto';
+import { RepostDto } from './dto/repost.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Request } from 'express';
 
@@ -86,6 +88,58 @@ export class SocialController {
   ) {
     const { userId } = req.user as { userId: string };
     return this.socialService.addComment(userId, id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('posts/:id/vote')
+  votePoll(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: VotePollDto,
+  ) {
+    const { userId } = req.user as { userId: string };
+    return this.socialService.votePoll(userId, id, dto.optionIdx);
+  }
+
+  @Get('posts/:id/poll-results')
+  getPollResults(@Param('id') id: string) {
+    return this.socialService.getPollResults(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('posts/:id/repost')
+  repost(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: RepostDto,
+  ) {
+    const { userId } = req.user as { userId: string };
+    return this.socialService.repost(userId, id, dto.caption);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('posts/:id/bookmark')
+  bookmark(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as { userId: string };
+    return this.socialService.bookmarkPost(userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('posts/:id/bookmark')
+  unbookmark(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as { userId: string };
+    return this.socialService.unbookmarkPost(userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('users/me/bookmarks')
+  getBookmarks(@Req() req: Request, @Query('page') page?: string, @Query('limit') limit?: string) {
+    const { userId } = req.user as { userId: string };
+    return this.socialService.getBookmarks(
+      userId,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+    );
   }
 }
 
