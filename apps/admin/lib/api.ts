@@ -3,6 +3,9 @@ const USER_API = process.env.NEXT_PUBLIC_USER_API || 'http://localhost:3002/v1';
 const VENUE_API = process.env.NEXT_PUBLIC_VENUE_API || 'http://localhost:3003/v1';
 const SOCIAL_API = process.env.NEXT_PUBLIC_SOCIAL_API || 'http://localhost:3005/v1';
 const CHECKIN_API = process.env.NEXT_PUBLIC_CHECKIN_API || 'http://localhost:3006/v1';
+const DJ_API = process.env.NEXT_PUBLIC_DJ_API || 'http://localhost:3010/v1';
+const EVENTS_API = process.env.NEXT_PUBLIC_EVENTS_API || 'http://localhost:3011/v1';
+const SCRAPER_API = process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:3009/v1';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -63,3 +66,23 @@ export const socialDelete = <T>(path: string, token: string) =>
 // Checkin service
 export const checkinGet = <T>(path: string, token: string) =>
   apiFetch<T>(CHECKIN_API, path, { token });
+
+// DJ service
+export const djGet = <T>(path: string, token?: string) =>
+  apiFetch<T>(DJ_API, path, { token });
+export const djPost = <T>(path: string, body: Record<string, unknown>, token: string) =>
+  apiFetch<T>(DJ_API, path, { method: 'POST', body, token });
+export const djPut = <T>(path: string, body: Record<string, unknown>, token: string) =>
+  apiFetch<T>(DJ_API, path, { method: 'PUT', body, token });
+
+// Events service
+export const eventsGet = <T>(path: string, token?: string) =>
+  apiFetch<T>(EVENTS_API, path, { token });
+export const eventsPost = <T>(path: string, body: Record<string, unknown>, token: string) =>
+  apiFetch<T>(EVENTS_API, path, { method: 'POST', body, token });
+
+// Scraper service
+export const scraperGet = <T>(path: string, token: string) =>
+  apiFetch<T>(SCRAPER_API, path, { token });
+export const scraperPost = <T>(path: string, body: Record<string, unknown>, token: string) =>
+  apiFetch<T>(SCRAPER_API, path, { method: 'POST', body, token });

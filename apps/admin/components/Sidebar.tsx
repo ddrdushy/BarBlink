@@ -10,6 +10,9 @@ const NAV = [
   { href: '/users', label: 'Users', icon: '👥' },
   { href: '/posts', label: 'Posts', icon: '📝' },
   { href: '/checkins', label: 'Check-ins', icon: '📍' },
+  { href: '/djs', label: 'DJs & Bands', icon: '🎧' },
+  { href: '/events', label: 'Events', icon: '🎉' },
+  { href: '/scraper', label: 'Scraper', icon: '🤖' },
 ];
 
 export function Sidebar() {
