@@ -225,7 +225,7 @@ export class AuthService {
   }
 
   private async generateTokens(userId: string, phone: string) {
-    const payload = { sub: userId, phone };
+    const payload = { sub: userId, role: 'user', phone };
 
     const accessToken = this.jwt.sign(payload, {
       expiresIn: this.config.get('JWT_ACCESS_EXPIRY', '15m'),

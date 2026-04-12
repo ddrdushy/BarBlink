@@ -168,6 +168,9 @@ services:
       MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-mg.barblink.com}
       MAILGUN_FROM: ${MAILGUN_FROM:-Barblink <noreply@mg.barblink.com>}
       DEV_OTP_BYPASS: "true"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@barblink.com}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-admin123}
+      ADMIN_NAME: ${ADMIN_NAME:-Platform Admin}
       PORT: "3001"
     ports:
       - "${AUTH_SERVICE_PORT:-3001}:3001"
