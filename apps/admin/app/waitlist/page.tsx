@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAdminAuth } from '@/components/AdminAuthProvider';
 import { StatsCard } from '@/components/StatsCard';
 
@@ -11,7 +11,7 @@ interface WaitlistEntry {
   createdAt: string;
 }
 
-// Mock data — replace with real API when waitlist backend is ready
+// Fallback data shown when waitlist API is not connected
 const MOCK_WAITLIST: WaitlistEntry[] = [
   { id: '1', email: 'maya@gmail.com', source: 'landing_page', createdAt: '2026-04-12T09:15:00Z' },
   { id: '2', email: 'arun.k@hotmail.com', source: 'landing_page', createdAt: '2026-04-12T08:30:00Z' },
@@ -27,31 +27,54 @@ const MOCK_WAITLIST: WaitlistEntry[] = [
 
 const PAGE_SIZE = 5;
 
+const WAITLIST_API = process.env.NEXT_PUBLIC_WAITLIST_API || '';
+
 export default function WaitlistPage() {
   useAdminAuth();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [showLaunchConfirm, setShowLaunchConfirm] = useState(false);
+  const [entries, setEntries] = useState<WaitlistEntry[]>(MOCK_WAITLIST);
+  const [usingMock, setUsingMock] = useState(true);
+
+  useEffect(() => {
+    if (!WAITLIST_API) return;
+    fetch(`${WAITLIST_API}/waitlist`, { headers: { 'Content-Type': 'application/json' } })
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed');
+        return res.json();
+      })
+      .then((data: { items?: WaitlistEntry[]; emails?: WaitlistEntry[] }) => {
+        const items = data.items || data.emails;
+        if (items && items.length > 0) {
+          setEntries(items);
+          setUsingMock(false);
+        }
+      })
+      .catch(() => {
+        // Waitlist API not reachable, keep mock data
+      });
+  }, []);
 
   const now = new Date();
   const todayStr = now.toDateString();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const addedToday = MOCK_WAITLIST.filter((e) => new Date(e.createdAt).toDateString() === todayStr).length;
-  const addedThisWeek = MOCK_WAITLIST.filter((e) => new Date(e.createdAt) >= weekAgo).length;
+  const addedToday = entries.filter((e) => new Date(e.createdAt).toDateString() === todayStr).length;
+  const addedThisWeek = entries.filter((e) => new Date(e.createdAt) >= weekAgo).length;
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return MOCK_WAITLIST;
+    if (!search.trim()) return entries;
     const q = search.toLowerCase();
-    return MOCK_WAITLIST.filter((e) => e.email.toLowerCase().includes(q));
-  }, [search]);
+    return entries.filter((e) => e.email.toLowerCase().includes(q));
+  }, [search, entries]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleExportCSV = () => {
     const header = 'Email,Source,Date Added\n';
-    const rows = MOCK_WAITLIST.map(
+    const rows = entries.map(
       (e) => `${e.email},${e.source},${new Date(e.createdAt).toISOString()}`
     ).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
@@ -66,16 +89,22 @@ export default function WaitlistPage() {
   const handleSendLaunchEmail = () => {
     // Placeholder — will integrate with email service
     setShowLaunchConfirm(false);
-    alert(`Launch email would be sent to ${MOCK_WAITLIST.length} subscribers.`);
+    alert(`Launch email would be sent to ${entries.length} subscribers.`);
   };
 
   return (
     <div>
       <h1 className="text-2xl font-extrabold tracking-tight mb-1">Waitlist</h1>
-      <p className="text-ink-mute text-sm mb-6">{MOCK_WAITLIST.length} total signups</p>
+      <p className="text-ink-mute text-sm mb-6">{entries.length} total signups</p>
+
+      {usingMock && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-surface border border-amber-500/20 text-amber-400 text-xs">
+          Connect to waitlist API in Settings to see real data. Showing sample entries.
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <StatsCard label="Total Emails" value={MOCK_WAITLIST.length} icon="📧" accent="text-neon-bright" />
+        <StatsCard label="Total Emails" value={entries.length} icon="📧" accent="text-neon-bright" />
         <StatsCard label="Added Today" value={addedToday} icon="🆕" accent="text-live" />
         <StatsCard label="This Week" value={addedThisWeek} icon="📅" accent="text-neon-bright" />
       </div>
@@ -107,7 +136,7 @@ export default function WaitlistPage() {
       {showLaunchConfirm && (
         <div className="mb-4 bg-surface rounded-xl border border-neon/30 p-5">
           <p className="text-sm font-semibold mb-2">
-            Send launch email to {MOCK_WAITLIST.length} subscribers?
+            Send launch email to {entries.length} subscribers?
           </p>
           <p className="text-ink-mute text-xs mb-4">
             This will notify all waitlist users that Barblink is live. This action cannot be undone.

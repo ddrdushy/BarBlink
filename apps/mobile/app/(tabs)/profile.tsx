@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { NeonButton } from '@/components/NeonButton';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { userGet } from '@/lib/api';
+import { userGet, checkinGet, communityGet } from '@/lib/api';
 
 interface FollowCounts { followers: number; following: number }
 
@@ -20,12 +20,27 @@ interface UserProfile {
   createdAt: string;
 }
 
+interface Badge {
+  e: string;
+  t: string;
+  s: string;
+}
+
+interface StreakData {
+  currentStreak: number;
+  longestStreak: number;
+}
+
+interface CheckinCountData {
+  count: number;
+}
+
 const COUNTRY_FLAGS: Record<string, string> = {
   MY: '\u{1F1F2}\u{1F1FE}',
   LK: '\u{1F1F1}\u{1F1F0}',
 };
 
-const badges = [
+const DEFAULT_BADGES: Badge[] = [
   { e: '🦉', t: 'Night Owl', s: '7-night streak' },
   { e: '🗺️', t: 'Explorer', s: '0 venues' },
   { e: '🥂', t: 'Curator', s: '0 collections' },
@@ -36,6 +51,9 @@ export default function Profile() {
   const { token, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [streak, setStreak] = useState<number>(0);
+  const [checkinCount, setCheckinCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,6 +61,30 @@ export default function Profile() {
     Promise.all([
       userGet<UserProfile>('/users/me', token).then(setProfile),
       userGet<FollowCounts>('/users/me/counts', token).then(setCounts).catch(() => {}),
+      // Fetch badges from community service
+      communityGet<Badge[]>('/community/badges/me', token)
+        .then((data) => {
+          if (data && Array.isArray(data) && data.length > 0) {
+            setBadges(data);
+          }
+        })
+        .catch(() => {}),
+      // Fetch streak from community service
+      communityGet<StreakData>('/community/streaks/me', token)
+        .then((data) => {
+          if (data && typeof data.currentStreak === 'number') {
+            setStreak(data.currentStreak);
+          }
+        })
+        .catch(() => {}),
+      // Fetch check-in count
+      checkinGet<CheckinCountData>('/checkins/me/count', token)
+        .then((data) => {
+          if (data && typeof data.count === 'number') {
+            setCheckinCount(data.count);
+          }
+        })
+        .catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [token]);
 
@@ -62,6 +104,8 @@ export default function Profile() {
   }
 
   const flag = COUNTRY_FLAGS[profile?.country || 'MY'] || '';
+  const displayBadges = badges.length > 0 ? badges : DEFAULT_BADGES;
+  const hasBadgesFromApi = badges.length > 0;
 
   return (
     <Screen padded={false}>
@@ -81,7 +125,7 @@ export default function Profile() {
           {[
             { k: String(counts.followers), v: 'Followers' },
             { k: String(counts.following), v: 'Following' },
-            { k: '0', v: 'Check-ins' },
+            { k: String(checkinCount), v: 'Check-ins' },
           ].map((s) => (
             <View key={s.v} style={styles.statCell}>
               <Text style={styles.statK}>{s.k}</Text>
@@ -90,16 +134,52 @@ export default function Profile() {
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>BADGES</Text>
-        <View style={styles.badgeRow}>
-          {badges.map((b) => (
-            <View key={b.t} style={styles.badgeCard}>
-              <Text style={styles.badgeEmoji}>{b.e}</Text>
-              <Text style={styles.badgeTitle}>{b.t}</Text>
-              <Text style={styles.badgeSub}>{b.s}</Text>
+        {checkinCount === 0 && (
+          <View style={styles.checkinHint}>
+            <Text style={styles.checkinHintText}>Check in to start counting!</Text>
+          </View>
+        )}
+
+        {/* Find Friends */}
+        <Pressable style={styles.findFriendsBtn} onPress={() => router.push('/friends/search')}>
+          <Text style={styles.findFriendsIcon}>👥</Text>
+          <Text style={styles.findFriendsText}>Find Friends</Text>
+          <Text style={styles.findFriendsArrow}>›</Text>
+        </Pressable>
+
+        {/* Streak */}
+        {streak > 0 && (
+          <View style={styles.streakCard}>
+            <Text style={styles.streakEmoji}>🔥</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.streakTitle}>{streak}-night streak</Text>
+              <Text style={styles.streakSub}>Keep it going!</Text>
             </View>
-          ))}
-        </View>
+          </View>
+        )}
+
+        <Text style={styles.sectionLabel}>BADGES</Text>
+        {!hasBadgesFromApi ? (
+          <View style={styles.badgeRow}>
+            {displayBadges.map((b) => (
+              <View key={b.t} style={[styles.badgeCard, styles.badgeCardLocked]}>
+                <Text style={styles.badgeEmoji}>{b.e}</Text>
+                <Text style={styles.badgeTitle}>{b.t}</Text>
+                <Text style={styles.badgeSub}>Locked</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.badgeRow}>
+            {displayBadges.map((b) => (
+              <View key={b.t} style={styles.badgeCard}>
+                <Text style={styles.badgeEmoji}>{b.e}</Text>
+                <Text style={styles.badgeTitle}>{b.t}</Text>
+                <Text style={styles.badgeSub}>{b.s}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.sectionLabel}>NIGHTLIFE PASSPORT</Text>
         <View style={styles.passportCard}>
@@ -139,11 +219,51 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
     paddingVertical: spacing.lg,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
   },
   statCell: { flex: 1, alignItems: 'center', gap: 2 },
   statK: { color: colors.ink, fontSize: 24, fontWeight: '800' },
   statV: { color: colors.inkMute, fontSize: 11, letterSpacing: 0.6 },
+  checkinHint: {
+    backgroundColor: colors.neonGhost,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  checkinHintText: {
+    color: colors.neonBright,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  findFriendsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgSurface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    gap: 10,
+  },
+  findFriendsIcon: { fontSize: 20 },
+  findFriendsText: { color: colors.ink, fontSize: 15, fontWeight: '700', flex: 1 },
+  findFriendsArrow: { color: colors.inkMute, fontSize: 22, fontWeight: '300' },
+  streakCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgSurface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,165,0,0.2)',
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    gap: 12,
+  },
+  streakEmoji: { fontSize: 28 },
+  streakTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
+  streakSub: { color: colors.inkMute, fontSize: 12, marginTop: 2 },
   sectionLabel: {
     color: colors.neonBright,
     fontSize: 11,
@@ -162,6 +282,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     alignItems: 'center',
     gap: 4,
+  },
+  badgeCardLocked: {
+    opacity: 0.5,
   },
   badgeEmoji: { fontSize: 22 },
   badgeTitle: { color: colors.ink, fontSize: 12, fontWeight: '700' },

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAdminAuth } from '@/components/AdminAuthProvider';
 import { StatsCard } from '@/components/StatsCard';
+import { communityGet } from '@/lib/api';
 
 type TimeTab = 'This Week' | 'Last Week' | 'All Time';
 type CountryFilter = 'All' | 'Malaysia' | 'Sri Lanka';
@@ -37,17 +38,33 @@ function calcScore(u: LeaderboardUser) {
 }
 
 export default function LeaderboardPage() {
-  useAdminAuth();
+  const { token } = useAdminAuth();
   const [timeTab, setTimeTab] = useState<TimeTab>('This Week');
   const [countryFilter, setCountryFilter] = useState<CountryFilter>('All');
+  const [users, setUsers] = useState<LeaderboardUser[]>(MOCK_USERS);
+  const [usingMock, setUsingMock] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    communityGet<{ items: LeaderboardUser[] }>('/community/leaderboard', token)
+      .then((data) => {
+        if (data.items && data.items.length > 0) {
+          setUsers(data.items);
+          setUsingMock(false);
+        }
+      })
+      .catch(() => {
+        // community-service not available, keep mock data
+      });
+  }, [token]);
 
   const filtered = useMemo(() => {
-    let users = [...MOCK_USERS];
+    let list = [...users];
     if (countryFilter !== 'All') {
-      users = users.filter((u) => u.country === countryFilter);
+      list = list.filter((u) => u.country === countryFilter);
     }
-    return users.sort((a, b) => calcScore(b) - calcScore(a));
-  }, [countryFilter]);
+    return list.sort((a, b) => calcScore(b) - calcScore(a));
+  }, [countryFilter, users]);
 
   const topScore = filtered.length > 0 ? calcScore(filtered[0]) : 0;
   const totalCheckins = filtered.reduce((s, u) => s + u.checkins, 0);
@@ -56,6 +73,12 @@ export default function LeaderboardPage() {
     <div>
       <h1 className="text-2xl font-extrabold tracking-tight mb-1">Leaderboard</h1>
       <p className="text-ink-mute text-sm mb-6">Top users by activity score</p>
+
+      {usingMock && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-surface border border-amber-500/20 text-amber-400 text-xs">
+          Leaderboard populates after check-in activity. Showing sample data.
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <StatsCard label="Top Score" value={topScore} icon="🏆" accent="text-yellow-400" />

@@ -124,6 +124,21 @@ export function socialDelete<T>(path: string, token: string): Promise<T> {
   return apiFetch<T>(SOCIAL_API, path, { method: 'DELETE', token });
 }
 
+export const NOTIFICATION_API = process.env.EXPO_PUBLIC_NOTIFICATION_API || `http://${DEV_HOST}:3008/v1`;
+export const COMMUNITY_API = process.env.EXPO_PUBLIC_COMMUNITY_API || `http://${DEV_HOST}:3012/v1`;
+
+export function notifGet<T>(path: string, token: string): Promise<T> {
+  return apiFetch<T>(NOTIFICATION_API, path, { method: 'GET', token });
+}
+
+export function notifPost<T>(path: string, body: Record<string, unknown>, token: string): Promise<T> {
+  return apiFetch<T>(NOTIFICATION_API, path, { method: 'POST', body, token });
+}
+
+export function communityGet<T>(path: string, token: string): Promise<T> {
+  return apiFetch<T>(COMMUNITY_API, path, { method: 'GET', token });
+}
+
 export const CHAT_API = process.env.EXPO_PUBLIC_CHAT_API || `http://${DEV_HOST}:3007/v1`;
 
 export function chatGet<T>(path: string, token: string): Promise<T> {

@@ -96,9 +96,14 @@ export default function FeedScreen() {
         <Text style={styles.appName}>
           blink<Text style={{ color: colors.neon }}>.</Text>feed
         </Text>
-        <Pressable style={styles.fabSmall} onPress={() => router.push('/post/create')}>
-          <Text style={styles.fabText}>+</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable style={styles.fabSmall} onPress={() => router.push('/notifications')}>
+            <Text style={styles.bellText}>🔔</Text>
+          </Pressable>
+          <Pressable style={styles.fabSmall} onPress={() => router.push('/post/create')}>
+            <Text style={styles.fabText}>+</Text>
+          </Pressable>
+        </View>
       </View>
 
       {loading ? (
@@ -164,8 +169,10 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.md },
   appName: { color: colors.ink, fontSize: 24, fontWeight: '800', letterSpacing: -0.8 },
+  headerActions: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   fabSmall: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.neonGhost, borderWidth: 1, borderColor: colors.neonBorder, alignItems: 'center', justifyContent: 'center' },
   fabText: { color: colors.neonBright, fontSize: 20, fontWeight: '700' },
+  bellText: { fontSize: 18 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   emptyEmoji: { fontSize: 48 },
   emptyTitle: { color: colors.ink, fontSize: 20, fontWeight: '800' },

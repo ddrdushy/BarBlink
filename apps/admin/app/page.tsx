@@ -15,23 +15,52 @@ interface Stats {
   activeNow: number;
 }
 
-const ACTIVITY_FEED = [
-  { time: '2m ago', icon: '👤', text: 'New user registered: @nightowl_kl', color: 'text-neon-bright' },
-  { time: '5m ago', icon: '📍', text: 'Check-in at Zouk KL (3 active)', color: 'text-live' },
-  { time: '12m ago', icon: '📸', text: 'New post by @marcus_kl tagged at PS150', color: 'text-ink-mute' },
-  { time: '18m ago', icon: '✅', text: 'Instagram scrape completed: Heli Lounge Bar', color: 'text-live' },
-  { time: '25m ago', icon: '🎧', text: 'DJ profile auto-created: DJ Reza K', color: 'text-neon-bright' },
-  { time: '32m ago', icon: '❌', text: 'Scraper failed: Elysium KL (retry scheduled)', color: 'text-danger' },
-  { time: '45m ago', icon: '🚩', text: 'New content report submitted', color: 'text-amber' },
-  { time: '1h ago', icon: '👤', text: 'New user registered: @colombo_vibes', color: 'text-neon-bright' },
-];
+interface ActivityItem {
+  time: string;
+  icon: string;
+  text: string;
+  color: string;
+  timestamp: number;
+}
+
+interface CheckinRecord {
+  id: string;
+  userId?: string;
+  username?: string;
+  venueName?: string;
+  createdAt: string;
+}
+
+interface PostRecord {
+  id: string;
+  userId?: string;
+  username?: string;
+  venueName?: string;
+  content?: string;
+  createdAt: string;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 export default function DashboardPage() {
   const { token } = useAdminAuth();
   const [stats, setStats] = useState<Stats | null>(null);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
 
   useEffect(() => {
     if (!token) return;
+
+    // Fetch stats (existing logic)
     Promise.all([
       userGet<{ totalUsers: number }>('/admin/stats', token),
       venueGet<{ totalVenues: number }>('/admin/stats', token),
@@ -40,6 +69,39 @@ export default function DashboardPage() {
     ]).then(([u, v, s, c]) => {
       setStats({ totalUsers: u.totalUsers, totalVenues: v.totalVenues, totalPosts: s.totalPosts, postsToday: s.postsToday, checkinsToday: c.checkinsToday, activeNow: c.activeNow });
     }).catch(() => {});
+
+    // Fetch recent activity from checkins and posts
+    const checkinPromise = checkinGet<{ items: CheckinRecord[] }>('/admin/checkins?limit=5', token)
+      .then((data) =>
+        (data.items || []).map((c): ActivityItem => ({
+          time: timeAgo(c.createdAt),
+          icon: '📍',
+          text: `Check-in${c.username ? ` by @${c.username}` : ''}${c.venueName ? ` at ${c.venueName}` : ''}`,
+          color: 'text-live',
+          timestamp: new Date(c.createdAt).getTime(),
+        }))
+      )
+      .catch(() => [] as ActivityItem[]);
+
+    const postPromise = socialGet<{ items: PostRecord[] }>('/admin/posts?limit=5', token)
+      .then((data) =>
+        (data.items || []).map((p): ActivityItem => ({
+          time: timeAgo(p.createdAt),
+          icon: '📸',
+          text: `New post${p.username ? ` by @${p.username}` : ''}${p.venueName ? ` at ${p.venueName}` : ''}`,
+          color: 'text-neon-bright',
+          timestamp: new Date(p.createdAt).getTime(),
+        }))
+      )
+      .catch(() => [] as ActivityItem[]);
+
+    Promise.all([checkinPromise, postPromise]).then(([checkins, posts]) => {
+      const merged = [...checkins, ...posts]
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 8);
+      setActivity(merged);
+      setActivityLoading(false);
+    });
   }, [token]);
 
   const dau = stats?.activeNow || 0;
@@ -95,15 +157,21 @@ export default function DashboardPage() {
             <span className="w-2 h-2 rounded-full bg-live animate-pulse" />
           </div>
           <div className="space-y-3">
-            {ACTIVITY_FEED.map((item, i) => (
-              <div key={i} className="flex gap-3 items-start">
-                <span className="text-sm mt-0.5">{item.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-xs ${item.color} leading-relaxed`}>{item.text}</p>
-                  <p className="text-[10px] text-ink-faint mt-0.5">{item.time}</p>
+            {activityLoading ? (
+              <p className="text-xs text-ink-faint py-4 text-center">Activity feed connecting...</p>
+            ) : activity.length === 0 ? (
+              <p className="text-xs text-ink-faint py-4 text-center">No recent activity yet</p>
+            ) : (
+              activity.map((item, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  <span className="text-sm mt-0.5">{item.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs ${item.color} leading-relaxed`}>{item.text}</p>
+                    <p className="text-[10px] text-ink-faint mt-0.5">{item.time}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

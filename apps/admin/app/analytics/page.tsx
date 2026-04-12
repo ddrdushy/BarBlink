@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAdminAuth } from '@/components/AdminAuthProvider';
 import { StatsCard } from '@/components/StatsCard';
-import { venueGet } from '@/lib/api';
+import { userGet, venueGet, socialGet, checkinGet } from '@/lib/api';
 import { format, subDays } from 'date-fns';
 import {
   LineChart,
@@ -28,7 +28,15 @@ interface VenueList {
   total: number;
 }
 
-// Generate mock data for last 30 days
+interface PlatformStats {
+  totalUsers: number;
+  totalPosts: number;
+  checkinsToday: number;
+  activeNow: number;
+}
+
+// Generate placeholder chart data for last 30 days
+// (will be replaced by real historical data once collection begins)
 const chartData = Array.from({ length: 30 }, (_, i) => {
   const date = subDays(new Date(), 29 - i);
   return {
@@ -56,9 +64,28 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 export default function AnalyticsPage() {
   const { token } = useAdminAuth();
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [stats, setStats] = useState<PlatformStats | null>(null);
 
   useEffect(() => {
     if (!token) return;
+
+    // Fetch real stats from all services (same endpoints as dashboard)
+    Promise.all([
+      userGet<{ totalUsers: number }>('/admin/stats', token),
+      socialGet<{ totalPosts: number; postsToday: number }>('/admin/stats', token),
+      checkinGet<{ checkinsToday: number; activeNow: number }>('/admin/stats', token),
+    ])
+      .then(([u, s, c]) => {
+        setStats({
+          totalUsers: u.totalUsers,
+          totalPosts: s.totalPosts,
+          checkinsToday: c.checkinsToday,
+          activeNow: c.activeNow,
+        });
+      })
+      .catch(() => {});
+
+    // Fetch top venues
     venueGet<VenueList>('/admin/venues?limit=100', token)
       .then((d) => {
         const sorted = [...d.items].sort((a, b) => (b.checkinCount ?? 0) - (a.checkinCount ?? 0));
@@ -67,19 +94,20 @@ export default function AnalyticsPage() {
       .catch(() => {});
   }, [token]);
 
-  const totalDAU = chartData.reduce((s, d) => s + d.dau, 0);
-  const avgDAU = Math.round(totalDAU / chartData.length);
-  const totalPosts = chartData.reduce((s, d) => s + d.posts, 0);
-
   return (
     <div>
       <h1 className="text-2xl font-extrabold tracking-tight mb-1">Analytics</h1>
       <p className="text-ink-mute text-sm mb-6">Platform metrics and engagement data</p>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <StatsCard label="Avg DAU (30d)" value={avgDAU} icon="👥" accent="text-neon-bright" />
-        <StatsCard label="Total Posts (30d)" value={totalPosts} icon="📝" accent="text-live" />
-        <StatsCard label="Top Venues" value={venues.length} icon="🏪" accent="text-neon-bright" />
+        <StatsCard label="Total Users" value={stats?.totalUsers ?? '—'} icon="👥" accent="text-neon-bright" />
+        <StatsCard label="Total Posts" value={stats?.totalPosts ?? '—'} icon="📝" accent="text-live" />
+        <StatsCard label="Check-ins Today" value={stats?.checkinsToday ?? '—'} icon="📍" accent="text-neon-bright" />
+      </div>
+
+      {/* Historical data notice */}
+      <div className="mb-6 px-4 py-3 rounded-lg bg-surface border border-white/[0.06] text-ink-mute text-xs">
+        Historical data collection starts after first 7 days. Charts below show placeholder trends.
       </div>
 
       {/* User Growth Chart */}

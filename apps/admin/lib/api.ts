@@ -81,6 +81,11 @@ export const eventsGet = <T>(path: string, token?: string) =>
 export const eventsPost = <T>(path: string, body: Record<string, unknown>, token: string) =>
   apiFetch<T>(EVENTS_API, path, { method: 'POST', body, token });
 
+// Community service
+const COMMUNITY_API = process.env.NEXT_PUBLIC_COMMUNITY_API || 'http://localhost:3012/v1';
+export const communityGet = <T>(path: string, token: string) =>
+  apiFetch<T>(COMMUNITY_API, path, { token });
+
 // Scraper service
 export const scraperGet = <T>(path: string, token: string) =>
   apiFetch<T>(SCRAPER_API, path, { token });
