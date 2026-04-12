@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAdminAuth } from '@/components/AdminAuthProvider';
 import { userGet, userPut } from '@/lib/api';
 
@@ -53,7 +54,7 @@ export default function UsersPage() {
           <tbody>
             {(data?.items || []).map((u) => (
               <tr key={u.id}>
-                <td className="font-semibold">@{u.username}</td>
+                <td className="font-semibold"><Link href={`/users/${u.id}`} className="hover:text-neon-bright transition">@{u.username}</Link></td>
                 <td className="text-ink-mute">{u.displayName || '—'}</td>
                 <td>{u.country === 'MY' ? '🇲🇾' : u.country === 'LK' ? '🇱🇰' : u.country}</td>
                 <td className="text-ink-mute text-sm">{new Date(u.createdAt).toLocaleDateString()}</td>
