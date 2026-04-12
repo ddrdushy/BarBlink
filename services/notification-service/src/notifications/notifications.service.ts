@@ -2,13 +2,18 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PushService } from '../push/push.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private pushService?: PushService,
+  ) {}
 
   async listNotifications(userId: string, query: { page: number; limit: number }) {
     const { page, limit } = query;
@@ -57,7 +62,7 @@ export class NotificationsService {
   }
 
   async createNotification(dto: CreateNotificationDto) {
-    return this.prisma.notification.create({
+    const notif = await this.prisma.notification.create({
       data: {
         userId: dto.userId,
         type: dto.type,
@@ -66,6 +71,37 @@ export class NotificationsService {
         metadata: (dto.metadata || undefined) as any,
       },
     });
+
+    // Send push notification if push service is available
+    if (this.pushService) {
+      const tokens = await this.prisma.deviceToken.findMany({
+        where: { userId: dto.userId },
+        select: { token: true },
+      });
+      if (tokens.length > 0) {
+        await this.pushService.sendToMultiple(
+          tokens.map((t) => t.token),
+          dto.title,
+          dto.body || '',
+          { type: dto.type, notificationId: notif.id },
+        );
+      }
+    }
+
+    return notif;
+  }
+
+  async registerDevice(userId: string, token: string, platform: string) {
+    return this.prisma.deviceToken.upsert({
+      where: { token },
+      create: { userId, token, platform },
+      update: { userId, platform },
+    });
+  }
+
+  async removeDevice(token: string) {
+    await this.prisma.deviceToken.deleteMany({ where: { token } });
+    return { message: 'Device removed' };
   }
 
   // --- Admin endpoints ---

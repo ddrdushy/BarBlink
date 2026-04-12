@@ -36,30 +36,73 @@ export class ScraperService {
     });
 
     try {
-      // In production, this would use Playwright to scrape Instagram
-      // For now, we simulate the scrape and log what would happen
       this.logger.log(`[Instagram] Scraping venue ${venueId}${instagramUrl ? ` from ${instagramUrl}` : ''}`);
 
-      // Simulated scraped data
+      const { chromium } = await import('playwright');
+      const browser = await chromium.launch({
+        headless: this.config.get('PLAYWRIGHT_HEADLESS', 'true') === 'true',
+      });
+      const page = await browser.newPage();
+
+      let bio = '';
+      const photoUrls: string[] = [];
+      const postCaptions: string[] = [];
+      const djNames: string[] = [];
+
+      if (instagramUrl) {
+        try {
+          await page.goto(instagramUrl, { waitUntil: 'networkidle', timeout: 30000 });
+          await page.waitForTimeout(2000);
+
+          // Extract bio
+          const bioEl = await page.$('header section > div.-vDIg span, header section div[class*="biography"] span');
+          if (bioEl) bio = (await bioEl.textContent()) || '';
+
+          // Extract recent post images
+          const imgs = await page.$$('article img[src*="instagram"]');
+          for (const img of imgs.slice(0, 12)) {
+            const src = await img.getAttribute('src');
+            if (src) photoUrls.push(src);
+          }
+
+          // Extract post captions for DJ name detection
+          const metaTags = await page.$$('meta[property="og:description"]');
+          for (const meta of metaTags) {
+            const content = await meta.getAttribute('content');
+            if (content) {
+              postCaptions.push(content);
+              // Simple DJ name detection from captions
+              const djMatch = content.match(/(?:feat|ft|featuring|dj|DJ|with)\s+([A-Z][a-zA-Z\s]+)/);
+              if (djMatch) djNames.push(djMatch[1].trim());
+            }
+          }
+        } catch (navError: any) {
+          this.logger.warn(`[Instagram] Navigation failed: ${navError.message}. Using fallback.`);
+        }
+      }
+
+      await browser.close();
+
       const scrapedData = {
         venueId,
         source: 'instagram' as const,
-        instagramBio: 'Scraped bio would appear here',
-        photoUrls: [],
-        instagramPosts: [],
-        djNames: [],
+        instagramBio: bio || null,
+        photoUrls,
+        instagramPosts: postCaptions,
+        djNames: [...new Set(djNames)],
         eventDetails: [],
       };
 
       await this.prisma.scrapedVenueData.create({ data: scrapedData });
 
+      const itemsSynced = photoUrls.length + (bio ? 1 : 0);
       await this.prisma.scrapeJob.update({
         where: { id: job.id },
-        data: { status: 'success', itemsSynced: 0, finishedAt: new Date() },
+        data: { status: 'success', itemsSynced, finishedAt: new Date() },
       });
 
-      this.logger.log(`[Instagram] Completed venue ${venueId}`);
-      return { status: 'success', message: 'Instagram scrape completed (simulated)' };
+      this.logger.log(`[Instagram] Completed venue ${venueId}: ${itemsSynced} items`);
+      return { status: 'success', itemsSynced, bio: bio.slice(0, 100), photos: photoUrls.length };
     } catch (error: any) {
       await this.prisma.scrapeJob.update({
         where: { id: job.id },
@@ -78,25 +121,82 @@ export class ScraperService {
     try {
       this.logger.log(`[Google] Scraping venue ${venueId}`);
 
+      // Fetch venue name from venue-service to search Google
+      let venueName = '';
+      try {
+        const res = await fetch(`${this.venueUrl}/venues/${venueId}`);
+        const json = await res.json();
+        venueName = json.data?.name || '';
+      } catch { /* silent */ }
+
+      const { chromium } = await import('playwright');
+      const browser = await chromium.launch({
+        headless: this.config.get('PLAYWRIGHT_HEADLESS', 'true') === 'true',
+      });
+      const page = await browser.newPage();
+
+      let address = '';
+      let rating: number | null = null;
+      let phone = '';
+      let openingHours = '';
+
+      if (venueName) {
+        try {
+          const searchQuery = encodeURIComponent(`${venueName} bar restaurant`);
+          await page.goto(`https://www.google.com/search?q=${searchQuery}`, {
+            waitUntil: 'networkidle',
+            timeout: 30000,
+          });
+          await page.waitForTimeout(2000);
+
+          // Extract address from knowledge panel
+          const addressEl = await page.$('[data-attrid="kc:/location/location:address"] .LrzXr, .LrzXr');
+          if (addressEl) address = (await addressEl.textContent()) || '';
+
+          // Extract rating
+          const ratingEl = await page.$('[data-attrid="kc:/collection/knowledge_panels/has_ratings:ratings"] .Aq14fc, .yi40Hd.YrbPuc');
+          if (ratingEl) {
+            const ratingText = (await ratingEl.textContent()) || '';
+            const parsed = parseFloat(ratingText);
+            if (!isNaN(parsed)) rating = parsed;
+          }
+
+          // Extract phone
+          const phoneEl = await page.$('[data-attrid="kc:/collection/knowledge_panels/has_phone:phone"] .LrzXr');
+          if (phoneEl) phone = (await phoneEl.textContent()) || '';
+
+          // Extract opening hours
+          const hoursEl = await page.$('[data-attrid="kc:/location/location:hours"] .LrzXr');
+          if (hoursEl) openingHours = (await hoursEl.textContent()) || '';
+
+        } catch (navError: any) {
+          this.logger.warn(`[Google] Search failed: ${navError.message}. Using fallback.`);
+        }
+      }
+
+      await browser.close();
+
       const scrapedData = {
         venueId,
         source: 'google' as const,
-        address: 'Scraped address would appear here',
-        rating: 4.0,
-        priceRange: 2,
-        openingHours: 'Mon-Sun: 6pm-2am',
+        name: venueName || null,
+        address: address || null,
+        phone: phone || null,
+        rating: rating,
+        openingHours: openingHours || null,
         photoUrls: [],
       };
 
       await this.prisma.scrapedVenueData.create({ data: scrapedData as any });
 
+      const itemsSynced = (address ? 1 : 0) + (rating ? 1 : 0) + (phone ? 1 : 0);
       await this.prisma.scrapeJob.update({
         where: { id: job.id },
-        data: { status: 'success', itemsSynced: 1, finishedAt: new Date() },
+        data: { status: 'success', itemsSynced, finishedAt: new Date() },
       });
 
-      this.logger.log(`[Google] Completed venue ${venueId}`);
-      return { status: 'success', message: 'Google scrape completed (simulated)' };
+      this.logger.log(`[Google] Completed venue ${venueId}: ${itemsSynced} items`);
+      return { status: 'success', itemsSynced, address, rating };
     } catch (error: any) {
       await this.prisma.scrapeJob.update({
         where: { id: job.id },

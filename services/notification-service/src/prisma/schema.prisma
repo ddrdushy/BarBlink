@@ -20,3 +20,14 @@ model Notification {
 
   @@map("notifications")
 }
+
+model DeviceToken {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  platform  String   @db.VarChar(10) // 'ios' | 'android' | 'web'
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("device_tokens")
+}

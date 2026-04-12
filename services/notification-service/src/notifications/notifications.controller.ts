@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put,
+  Controller, Get, Post, Put, Delete,
   Body, Param, Query, UseGuards, Req,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
@@ -43,6 +43,19 @@ export class NotificationsController {
   @Post()
   create(@Body() dto: CreateNotificationDto) {
     return this.notificationsService.createNotification(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('device')
+  registerDevice(@Req() req: Request, @Body() body: { token: string; platform: string }) {
+    const { userId } = req.user as { userId: string };
+    return this.notificationsService.registerDevice(userId, body.token, body.platform);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('device')
+  removeDevice(@Body() body: { token: string }) {
+    return this.notificationsService.removeDevice(body.token);
   }
 }
 
