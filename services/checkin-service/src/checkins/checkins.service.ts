@@ -18,7 +18,7 @@ export class CheckinsService {
     // Expire stale check-ins for this venue (> 6 hours)
     await this.expireStale();
 
-    return this.prisma.checkin.create({
+    const result = await this.prisma.checkin.create({
       data: {
         userId,
         venueId: dto.venueId,
@@ -26,6 +26,8 @@ export class CheckinsService {
         lng: dto.lng,
       },
     });
+    this.publishEvent('user.checked_in', { userId, venueId: dto.venueId, checkinId: result.id });
+    return result;
   }
 
   async checkout(userId: string, checkinId: string) {
@@ -108,5 +110,16 @@ export class CheckinsService {
       where: { isActive: true, checkedInAt: { lt: cutoff } },
       data: { isActive: false, checkedOutAt: cutoff },
     });
+  }
+
+  private async publishEvent(topic: string, payload: Record<string, unknown>) {
+    try {
+      const { Kafka } = require('kafkajs');
+      const kafka = new Kafka({ brokers: [process.env.REDPANDA_BROKERS || 'localhost:9092'] });
+      const producer = kafka.producer();
+      await producer.connect();
+      await producer.send({ topic, messages: [{ value: JSON.stringify({ ...payload, timestamp: new Date().toISOString() }) }] });
+      await producer.disconnect();
+    } catch { /* silent - event publishing is non-critical */ }
   }
 }

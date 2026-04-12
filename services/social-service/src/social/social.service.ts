@@ -47,13 +47,15 @@ export class SocialService {
   }
 
   async createPost(userId: string, dto: CreatePostDto) {
-    return this.prisma.post.create({
+    const result = await this.prisma.post.create({
       data: {
         userId,
         venueId: dto.venueId,
         caption: dto.caption,
       },
     });
+    this.publishEvent('post.created', { postId: result.id, userId });
+    return result;
   }
 
   async getPost(postId: string, userId?: string) {
@@ -168,5 +170,16 @@ export class SocialService {
       this.prisma.post.count({ where: { isActive: true, createdAt: { gte: today } } }),
     ]);
     return { totalPosts, postsToday };
+  }
+
+  private async publishEvent(topic: string, payload: Record<string, unknown>) {
+    try {
+      const { Kafka } = require('kafkajs');
+      const kafka = new Kafka({ brokers: [process.env.REDPANDA_BROKERS || 'localhost:9092'] });
+      const producer = kafka.producer();
+      await producer.connect();
+      await producer.send({ topic, messages: [{ value: JSON.stringify({ ...payload, timestamp: new Date().toISOString() }) }] });
+      await producer.disconnect();
+    } catch { /* silent - event publishing is non-critical */ }
   }
 }

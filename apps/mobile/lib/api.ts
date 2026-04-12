@@ -124,6 +124,22 @@ export function socialDelete<T>(path: string, token: string): Promise<T> {
   return apiFetch<T>(SOCIAL_API, path, { method: 'DELETE', token });
 }
 
+export async function uploadImage(uri: string, token: string): Promise<string> {
+  const SOCIAL = SOCIAL_API.replace('/v1', '');
+  const formData = new FormData();
+  const filename = uri.split('/').pop() || 'photo.jpg';
+  formData.append('file', { uri, name: filename, type: 'image/jpeg' } as any);
+
+  const res = await fetch(`${SOCIAL}/v1/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error?.message || 'Upload failed');
+  return json.data.url;
+}
+
 export const NOTIFICATION_API = process.env.EXPO_PUBLIC_NOTIFICATION_API || `http://${DEV_HOST}:3008/v1`;
 export const COMMUNITY_API = process.env.EXPO_PUBLIC_COMMUNITY_API || `http://${DEV_HOST}:3012/v1`;
 

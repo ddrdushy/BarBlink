@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   FlatList,
+  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -9,11 +10,12 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { Screen } from '@/components/Screen';
 import { NeonButton } from '@/components/NeonButton';
 import { colors, radii, spacing, touchTarget } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { socialPost, venueGet, userGet } from '@/lib/api';
+import { socialPost, venueGet, userGet, uploadImage } from '@/lib/api';
 
 interface VenueOption {
   id: string;
@@ -28,6 +30,7 @@ export default function CreatePostScreen() {
   const [venue, setVenue] = useState<VenueOption | null>(null);
   const [venues, setVenues] = useState<VenueOption[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -42,6 +45,16 @@ export default function CreatePostScreen() {
     })();
   }, [token]);
 
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
   const handlePost = async () => {
     if (!token || !caption.trim()) return;
     setLoading(true);
@@ -49,6 +62,10 @@ export default function CreatePostScreen() {
     try {
       const body: Record<string, unknown> = { caption: caption.trim() };
       if (venue) body.venueId = venue.id;
+      if (imageUri) {
+        const url = await uploadImage(imageUri, token);
+        body.mediaUrls = [url];
+      }
       await socialPost('/posts', body, token);
       router.back();
     } catch (e: any) {
@@ -67,6 +84,20 @@ export default function CreatePostScreen() {
         <Text style={styles.title}>New Post</Text>
         <View style={{ width: 60 }} />
       </View>
+
+      <Pressable style={styles.photoBtn} onPress={pickImage}>
+        {imageUri ? (
+          <View style={styles.photoPreviewRow}>
+            <Image source={{ uri: imageUri }} style={styles.photoThumb} />
+            <Text style={styles.photoBtnText}>Change Photo</Text>
+            <Pressable hitSlop={12} onPress={() => setImageUri(null)}>
+              <Text style={styles.photoRemove}>{'\u2715'}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Text style={styles.photoBtnText}>{'\uD83D\uDCF7'} Add Photo</Text>
+        )}
+      </Pressable>
 
       <TextInput
         style={styles.captionInput}
@@ -134,6 +165,25 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing.lg },
   cancel: { color: colors.inkMute, fontSize: 15, fontWeight: '600' },
   title: { color: colors.ink, fontSize: 18, fontWeight: '800' },
+  photoBtn: {
+    backgroundColor: colors.bgSurface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.neonBorder,
+    borderStyle: 'dashed',
+    padding: 14,
+    marginBottom: spacing.md,
+    alignItems: 'center',
+  },
+  photoBtnText: { color: colors.neon, fontSize: 14, fontWeight: '600' },
+  photoPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+  },
+  photoThumb: { width: 100, height: 100, borderRadius: 8 },
+  photoRemove: { color: colors.inkMute, fontSize: 14, padding: 4 },
   captionInput: {
     color: colors.ink,
     fontSize: 17,

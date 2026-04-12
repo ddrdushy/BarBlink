@@ -82,9 +82,11 @@ export class UsersService {
     if (existing) {
       throw new ConflictException('Follow request already sent');
     }
-    return this.prisma.follow.create({
+    const result = await this.prisma.follow.create({
       data: { followerId, followingId },
     });
+    this.publishEvent('friend.request_sent', { fromUserId: followerId, toUserId: followingId });
+    return result;
   }
 
   async unfollow(followerId: string, followingId: string) {
@@ -193,5 +195,16 @@ export class UsersService {
   async adminStats() {
     const total = await this.prisma.profile.count();
     return { totalUsers: total };
+  }
+
+  private async publishEvent(topic: string, payload: Record<string, unknown>) {
+    try {
+      const { Kafka } = require('kafkajs');
+      const kafka = new Kafka({ brokers: [process.env.REDPANDA_BROKERS || 'localhost:9092'] });
+      const producer = kafka.producer();
+      await producer.connect();
+      await producer.send({ topic, messages: [{ value: JSON.stringify({ ...payload, timestamp: new Date().toISOString() }) }] });
+      await producer.disconnect();
+    } catch { /* silent - event publishing is non-critical */ }
   }
 }
