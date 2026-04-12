@@ -440,6 +440,60 @@ services:
       - "${ADMIN_PORT:-3200}:3200"
     profiles: ["admin"]
 
+  # ---------------------------------------------------------------------------
+  # Monitoring — Grafana + Prometheus + Loki. Enable with --profile monitoring
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: barblink-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    profiles: ["monitoring"]
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: barblink-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-barblink_grafana}
+      GF_SERVER_ROOT_URL: http://localhost:3300
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    ports:
+      - "${GRAFANA_PORT:-3300}:3000"
+    depends_on:
+      - prometheus
+    profiles: ["monitoring"]
+
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: barblink-loki
+    restart: unless-stopped
+    ports:
+      - "3101:3100"
+    volumes:
+      - loki_data:/loki
+    profiles: ["monitoring"]
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: barblink-cadvisor
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8080:8080"
+    profiles: ["monitoring"]
+
 volumes:
   postgres_data:
   redis_data:
@@ -448,3 +502,6 @@ volumes:
   meilisearch_data:
   eas_home:
   eas_npm_cache:
+  prometheus_data:
+  grafana_data:
+  loki_data:
