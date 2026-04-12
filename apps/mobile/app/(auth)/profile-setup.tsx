@@ -42,7 +42,7 @@ export default function ProfileSetup() {
         displayName: displayName.trim(),
         country: country.code,
       }, token);
-      router.replace('/(tabs)');
+      router.replace('/(auth)/terms');
     } catch (e) {
       if (e instanceof ApiError && e.statusCode === 409) {
         setError('Username is already taken. Try another.');
