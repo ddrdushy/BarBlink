@@ -13,6 +13,7 @@ const NAV = [
   { href: '/djs', label: 'DJs & Bands', icon: '🎧' },
   { href: '/events', label: 'Events', icon: '🎉' },
   { href: '/scraper', label: 'Scraper', icon: '🤖' },
+  { href: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 
 export function Sidebar() {

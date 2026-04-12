@@ -86,3 +86,11 @@ export const scraperGet = <T>(path: string, token: string) =>
   apiFetch<T>(SCRAPER_API, path, { token });
 export const scraperPost = <T>(path: string, body: Record<string, unknown>, token: string) =>
   apiFetch<T>(SCRAPER_API, path, { method: 'POST', body, token });
+
+// Settings (via auth-service)
+export const settingsGet = <T>(path: string, token: string) =>
+  apiFetch<T>(AUTH_API, path, { token });
+export const settingsPost = <T>(path: string, body: Record<string, unknown>, token: string) =>
+  apiFetch<T>(AUTH_API, path, { method: 'POST', body, token });
+export const settingsDelete = <T>(path: string, token: string) =>
+  apiFetch<T>(AUTH_API, path, { method: 'DELETE', token });

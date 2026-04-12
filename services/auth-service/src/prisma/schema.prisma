@@ -54,3 +54,14 @@ model RefreshToken {
 
   @@map("refresh_tokens")
 }
+
+model PlatformSetting {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String   @unique @db.VarChar(100)
+  value     String
+  category  String   @db.VarChar(50) // 'mailgun', 'firebase', 'minio', 'scraper', 'general'
+  secret    Boolean  @default(false) // mask value in API responses
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("platform_settings")
+}
