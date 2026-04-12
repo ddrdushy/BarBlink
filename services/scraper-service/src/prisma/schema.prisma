@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ScrapeSource {
+  instagram
+  google
+}
+
+enum ScrapeStatus {
+  success
+  failed
+  blocked
+}
+
+model ScrapeJob {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId    String       @map("venue_id") @db.Uuid
+  source     ScrapeSource
+  status     ScrapeStatus @default(success)
+  errorMsg   String?      @map("error_msg")
+  itemsSynced Int         @default(0) @map("items_synced")
+  startedAt  DateTime     @default(now()) @map("started_at") @db.Timestamptz()
+  finishedAt DateTime?    @map("finished_at") @db.Timestamptz()
+
+  @@map("scrape_jobs")
+}
+
+model ScrapedVenueData {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId         String   @map("venue_id") @db.Uuid
+  source          ScrapeSource
+  name            String?
+  description     String?
+  address         String?
+  phone           String?
+  lat             Decimal? @db.Decimal(9, 6)
+  lng             Decimal? @db.Decimal(9, 6)
+  rating          Decimal? @db.Decimal(2, 1)
+  priceRange      Int?     @map("price_range")
+  photoUrls       String[] @default([]) @map("photo_urls")
+  openingHours    String?  @map("opening_hours")
+  instagramBio    String?  @map("instagram_bio")
+  instagramPosts  String[] @default([]) @map("instagram_posts")
+  djNames         String[] @default([]) @map("dj_names")
+  eventDetails    String[] @default([]) @map("event_details")
+  scrapedAt       DateTime @default(now()) @map("scraped_at") @db.Timestamptz()
+
+  @@map("scraped_venue_data")
+}

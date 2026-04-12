@@ -378,6 +378,28 @@ services:
     profiles: ["services"]
 
   # ---------------------------------------------------------------------------
+  # Scraper service — Playwright Instagram + Google. Enable with --profile services
+  # ---------------------------------------------------------------------------
+  scraper-service:
+    build:
+      context: ./services/scraper-service
+      dockerfile: Dockerfile
+    container_name: barblink-scraper-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-barblink}:${POSTGRES_PASSWORD:-barblink_dev}@postgres:5432/barblink_scraper
+      JWT_SECRET: ${JWT_SECRET:-barblink_dev_jwt_secret}
+      VENUE_SERVICE_URL: http://venue-service:3003/v1
+      PLAYWRIGHT_HEADLESS: "true"
+      PORT: "3009"
+    ports:
+      - "${SCRAPER_SERVICE_PORT:-3009}:3009"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["services"]
+
+  # ---------------------------------------------------------------------------
   # Landing page (optional, production-style image). Enable with --profile landing
   # ---------------------------------------------------------------------------
   landing:
