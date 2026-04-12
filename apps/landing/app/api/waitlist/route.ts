@@ -10,6 +10,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
     }
 
+    // Save to auth-service waitlist (primary store)
+    const authApi = process.env.AUTH_API_URL;
+    if (authApi) {
+      try {
+        await fetch(`${authApi}/waitlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, source: 'landing_page' }),
+          cache: 'no-store',
+        });
+      } catch (err) {
+        console.error('[waitlist] auth-service call failed', err);
+      }
+    }
+
+    // Also notify via notification-service (legacy path)
     const apiUrl = process.env.API_URL;
     if (apiUrl) {
       try {
@@ -22,8 +38,10 @@ export async function POST(req: Request) {
       } catch (err) {
         console.error('[waitlist] notification-service call failed', err);
       }
-    } else {
-      console.info('[waitlist] queued (no API_URL set)', email);
+    }
+
+    if (!authApi && !apiUrl) {
+      console.info('[waitlist] queued (no API URLs set)', email);
     }
 
     return NextResponse.json({ success: true });

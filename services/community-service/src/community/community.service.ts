@@ -177,6 +177,64 @@ export class CommunityService implements OnModuleInit {
     this.logger.log(`Seeded ${SEED_NEIGHBOURHOODS.length} neighbourhood groups`);
   }
 
+  // --- Loyalty & Rewards ---
+
+  async getMyLoyaltyPoints(userId: string) {
+    return this.prisma.loyaltyPoints.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  async addPoints(userId: string, venueId: string, points: number) {
+    const existing = await this.prisma.loyaltyPoints.findUnique({
+      where: { userId_venueId: { userId, venueId } },
+    });
+
+    if (existing) {
+      return this.prisma.loyaltyPoints.update({
+        where: { userId_venueId: { userId, venueId } },
+        data: { points: existing.points + points },
+      });
+    }
+
+    return this.prisma.loyaltyPoints.create({
+      data: { userId, venueId, points },
+    });
+  }
+
+  async getVenueRewards(venueId: string) {
+    return this.prisma.reward.findMany({
+      where: { venueId, isActive: true },
+      orderBy: { pointsCost: 'asc' },
+    });
+  }
+
+  async redeemReward(userId: string, rewardId: string) {
+    const reward = await this.prisma.reward.findUnique({ where: { id: rewardId } });
+    if (!reward) throw new NotFoundException('Reward not found');
+    if (!reward.isActive) throw new ForbiddenException('Reward is no longer available');
+
+    const loyalty = await this.prisma.loyaltyPoints.findUnique({
+      where: { userId_venueId: { userId, venueId: reward.venueId } },
+    });
+
+    if (!loyalty || loyalty.points < reward.pointsCost) {
+      throw new ForbiddenException('Not enough points');
+    }
+
+    await this.prisma.loyaltyPoints.update({
+      where: { userId_venueId: { userId, venueId: reward.venueId } },
+      data: { points: loyalty.points - reward.pointsCost },
+    });
+
+    return {
+      message: 'Reward redeemed successfully',
+      reward: { id: reward.id, name: reward.name },
+      remainingPoints: loyalty.points - reward.pointsCost,
+    };
+  }
+
   // --- Admin endpoints ---
 
   async adminStats() {

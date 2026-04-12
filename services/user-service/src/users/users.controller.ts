@@ -154,6 +154,40 @@ export class UsersController {
     return this.usersService.searchUsers(q || '', userId);
   }
 
+  // --- Subscription ---
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/subscription')
+  getSubscription(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.getSubscription(userId);
+  }
+
+  // --- Bar Buddy ---
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/bar-buddy')
+  createBuddyRequest(
+    @Req() req: Request,
+    @Body() body: { area: string; message?: string; genres?: string[] },
+  ) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.createBuddyRequest(userId, body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('bar-buddy')
+  getActiveBuddyRequests(@Query('area') area?: string) {
+    return this.usersService.getActiveBuddyRequests(area);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('me/bar-buddy')
+  cancelBuddyRequest(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.usersService.cancelBuddyRequest(userId);
+  }
+
   // --- Parameterized routes (must be last to avoid swallowing static routes) ---
 
   @Get(':username')
@@ -201,6 +235,15 @@ export class AdminUsersController {
   @Put('users/:id/status')
   updateStatus(@Param('id') id: string, @Body('status') status: string) {
     return this.usersService.adminUpdateStatus(id, status);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('users/:id/subscription')
+  updateSubscription(
+    @Param('id') id: string,
+    @Body() body: { plan: string; expiresAt?: string },
+  ) {
+    return this.usersService.updateSubscription(id, body.plan, body.expiresAt);
   }
 
   @UseGuards(JwtAuthGuard)

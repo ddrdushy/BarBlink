@@ -104,6 +104,42 @@ export class NotificationsService {
     return { message: 'Device removed' };
   }
 
+  // --- Notification Preferences ---
+
+  async getPreferences(userId: string) {
+    let prefs = await this.prisma.notificationPreference.findUnique({
+      where: { userId },
+    });
+
+    if (!prefs) {
+      // Create default preferences on first access
+      prefs = await this.prisma.notificationPreference.create({
+        data: { userId },
+      });
+    }
+
+    return prefs;
+  }
+
+  async updatePreferences(
+    userId: string,
+    dto: {
+      pushEnabled?: boolean;
+      emailEnabled?: boolean;
+      likesEnabled?: boolean;
+      commentsEnabled?: boolean;
+      followsEnabled?: boolean;
+      checkinsEnabled?: boolean;
+      eventsEnabled?: boolean;
+    },
+  ) {
+    return this.prisma.notificationPreference.upsert({
+      where: { userId },
+      create: { userId, ...dto },
+      update: dto,
+    });
+  }
+
   // --- Admin endpoints ---
 
   async adminStats() {

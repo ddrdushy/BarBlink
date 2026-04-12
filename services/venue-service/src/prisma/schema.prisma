@@ -40,9 +40,10 @@ model Venue {
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz()
 
-  photos  VenuePhoto[]
-  hours   VenueHour[]
-  reviews VenueReview[]
+  photos       VenuePhoto[]
+  hours        VenueHour[]
+  reviews      VenueReview[]
+  reservations Reservation[]
 
   @@map("venues")
 }
@@ -94,4 +95,21 @@ model VenueReview {
 
   venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
   @@map("venue_reviews")
+}
+
+model Reservation {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId   String   @map("venue_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  date      DateTime @db.Date
+  time      String   @db.VarChar(10)
+  partySize Int      @map("party_size") @db.SmallInt
+  name      String   @db.VarChar(100)
+  phone     String?  @db.VarChar(20)
+  notes     String?
+  status    String   @default("pending") @db.VarChar(20) // pending, confirmed, cancelled, completed
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  @@map("reservations")
 }

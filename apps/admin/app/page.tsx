@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAdminAuth } from '@/components/AdminAuthProvider';
 import { StatsCard } from '@/components/StatsCard';
-import { userGet, venueGet, socialGet, checkinGet } from '@/lib/api';
+import { userGet, venueGet, socialGet, checkinGet, djGet } from '@/lib/api';
 
 interface Stats {
   totalUsers: number;
@@ -13,6 +13,8 @@ interface Stats {
   postsToday: number;
   checkinsToday: number;
   activeNow: number;
+  newUsersToday: number;
+  totalDjs: number;
 }
 
 interface ActivityItem {
@@ -60,14 +62,15 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!token) return;
 
-    // Fetch stats (existing logic)
+    // Fetch stats (existing logic + dj-service)
     Promise.all([
-      userGet<{ totalUsers: number }>('/admin/stats', token),
+      userGet<{ totalUsers: number; newUsersToday: number }>('/admin/stats', token),
       venueGet<{ totalVenues: number }>('/admin/stats', token),
       socialGet<{ totalPosts: number; postsToday: number }>('/admin/stats', token),
       checkinGet<{ checkinsToday: number; activeNow: number }>('/admin/stats', token),
-    ]).then(([u, v, s, c]) => {
-      setStats({ totalUsers: u.totalUsers, totalVenues: v.totalVenues, totalPosts: s.totalPosts, postsToday: s.postsToday, checkinsToday: c.checkinsToday, activeNow: c.activeNow });
+      djGet<{ totalDjs: number }>('/admin/stats', token).catch(() => ({ totalDjs: 0 })),
+    ]).then(([u, v, s, c, d]) => {
+      setStats({ totalUsers: u.totalUsers, newUsersToday: u.newUsersToday ?? 0, totalVenues: v.totalVenues, totalPosts: s.totalPosts, postsToday: s.postsToday, checkinsToday: c.checkinsToday, activeNow: c.activeNow, totalDjs: d.totalDjs });
     }).catch(() => {});
 
     // Fetch recent activity from checkins and posts
@@ -114,9 +117,11 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
         <div>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <StatsCard label="Total Users" value={stats?.totalUsers ?? '—'} icon="👥" />
+            <StatsCard label="New Users Today" value={stats?.newUsersToday ?? 0} icon="🆕" accent="text-neon-bright" />
             <StatsCard label="Total Venues" value={stats?.totalVenues ?? '—'} icon="🏛️" />
+            <StatsCard label="Active DJs" value={stats?.totalDjs ?? 0} icon="🎧" accent="text-neon-bright" />
             <StatsCard label="Check-ins Today" value={stats?.checkinsToday ?? '—'} icon="📍" accent="text-live" />
             <StatsCard label="Posts Today" value={stats?.postsToday ?? '—'} icon="📸" accent="text-neon-bright" />
             <StatsCard label="Active Now" value={stats?.activeNow ?? 0} icon="🟢" accent="text-live" />

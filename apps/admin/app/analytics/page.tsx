@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAdminAuth } from '@/components/AdminAuthProvider';
 import { StatsCard } from '@/components/StatsCard';
-import { userGet, venueGet, socialGet, checkinGet } from '@/lib/api';
+import { authGet, userGet, venueGet, socialGet, checkinGet } from '@/lib/api';
 import { format, subDays } from 'date-fns';
 import {
   LineChart,
@@ -35,9 +35,13 @@ interface PlatformStats {
   activeNow: number;
 }
 
-// Generate placeholder chart data for last 30 days
-// (will be replaced by real historical data once collection begins)
-const chartData = Array.from({ length: 30 }, (_, i) => {
+interface RegistrationData {
+  date: string;
+  registrations: number;
+}
+
+// Generate placeholder chart data for last 30 days (used as fallback)
+const placeholderData = Array.from({ length: 30 }, (_, i) => {
   const date = subDays(new Date(), 29 - i);
   return {
     date: format(date, 'MMM d'),
@@ -65,6 +69,8 @@ export default function AnalyticsPage() {
   const { token } = useAdminAuth();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [stats, setStats] = useState<PlatformStats | null>(null);
+  const [chartData, setChartData] = useState(placeholderData);
+  const [hasRealData, setHasRealData] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -84,6 +90,25 @@ export default function AnalyticsPage() {
         });
       })
       .catch(() => {});
+
+    // Fetch real daily registration data from auth-service
+    authGet<RegistrationData[]>('/admin/analytics/registrations?days=30', token)
+      .then((data) => {
+        if (data && data.length > 0) {
+          setChartData(
+            data.map((d) => ({
+              date: format(new Date(d.date), 'MMM d'),
+              dau: d.registrations,
+              posts: 0,
+              checkins: 0,
+            })),
+          );
+          setHasRealData(true);
+        }
+      })
+      .catch(() => {
+        // Keep placeholder data
+      });
 
     // Fetch top venues
     venueGet<VenueList>('/admin/venues?limit=100', token)
@@ -106,14 +131,16 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Historical data notice */}
-      <div className="mb-6 px-4 py-3 rounded-lg bg-surface border border-white/[0.06] text-ink-mute text-xs">
-        Historical data collection starts after first 7 days. Charts below show placeholder trends.
-      </div>
+      {!hasRealData && (
+        <div className="mb-6 px-4 py-3 rounded-lg bg-surface border border-white/[0.06] text-ink-mute text-xs">
+          Historical data collection starts after first 7 days. Charts below show placeholder trends.
+        </div>
+      )}
 
       {/* User Growth Chart */}
       <div className="bg-surface rounded-xl border border-white/[0.06] p-5 mb-6">
         <h2 className="text-[11px] font-bold tracking-wider uppercase text-ink-mute mb-4">
-          User Growth — Daily Active Users (30d)
+          {hasRealData ? 'User Growth — Daily Registrations (30d)' : 'User Growth — Daily Active Users (30d)'}
         </h2>
         <div style={{ width: '100%', height: 280 }}>
           <ResponsiveContainer>

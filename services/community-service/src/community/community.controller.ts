@@ -78,6 +78,27 @@ export class CommunityController {
   getNeighbourhoodFeed(@Param('area') area: string) {
     return this.communityService.getNeighbourhoodFeed(area);
   }
+
+  // --- Loyalty & Rewards ---
+
+  @UseGuards(JwtAuthGuard)
+  @Get('loyalty/me')
+  getMyLoyaltyPoints(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.communityService.getMyLoyaltyPoints(userId);
+  }
+
+  @Get('loyalty/venue/:venueId/rewards')
+  getVenueRewards(@Param('venueId') venueId: string) {
+    return this.communityService.getVenueRewards(venueId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('loyalty/redeem/:rewardId')
+  redeemReward(@Req() req: Request, @Param('rewardId') rewardId: string) {
+    const { userId } = req.user as { userId: string };
+    return this.communityService.redeemReward(userId, rewardId);
+  }
 }
 
 @Controller('admin')

@@ -1,0 +1,9 @@
+{
+  "name": "@barblink/venue-manager",
+  "version": "0.0.1",
+  "private": true,
+  "description": "React Native (Expo) app for venue staff to manage check-ins, orders, and reservations.",
+  "scripts": {
+    "placeholder": "echo 'Venue Manager app is planned for post-1,000 DAU'"
+  }
+}

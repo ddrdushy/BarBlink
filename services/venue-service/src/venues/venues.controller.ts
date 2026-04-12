@@ -4,6 +4,7 @@ import { CreateVenueDto } from './dto/create-venue.dto';
 import { UpdateVenueDto } from './dto/update-venue.dto';
 import { VendorUpdateVenueDto } from './dto/vendor-update-venue.dto';
 import { ListVenuesQueryDto } from './dto/list-venues-query.dto';
+import { CreateReservationDto } from './dto/create-reservation.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Request } from 'express';
 
@@ -15,6 +16,14 @@ export class VenuesController {
   @Get('venues')
   list(@Query() query: ListVenuesQueryDto) {
     return this.venuesService.list(query);
+  }
+
+  // Reservation — user's reservations (static route before :id wildcard)
+  @UseGuards(JwtAuthGuard)
+  @Get('venues/me/reservations')
+  getUserReservations(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.venuesService.getUserReservations(userId);
   }
 
   // Venue Follow — static routes before :id wildcard
@@ -74,6 +83,18 @@ export class VenuesController {
     return this.venuesService.unfollowVenue(userId, id);
   }
 
+  // Reservation — create for a venue
+  @UseGuards(JwtAuthGuard)
+  @Post('venues/:id/reservations')
+  createReservation(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: CreateReservationDto,
+  ) {
+    const { userId } = req.user as { userId: string };
+    return this.venuesService.createReservation(userId, id, dto);
+  }
+
   // Vendor Portal endpoints (JWT protected — will be VendorGuard later)
   @UseGuards(JwtAuthGuard)
   @Get('vendor/venue')
@@ -105,6 +126,25 @@ export class VenuesController {
   getVendorVenueStats(@Req() req: Request) {
     const { venueId } = req.user as { venueId: string };
     return this.venuesService.getVendorVenueStats(venueId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('vendor/venue/reservations')
+  getVendorVenueReservations(
+    @Req() req: Request,
+    @Query('date') date?: string,
+  ) {
+    const { venueId } = req.user as { venueId: string };
+    return this.venuesService.getVenueReservations(venueId, date);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('vendor/venue/reservations/:id/status')
+  updateReservationStatus(
+    @Param('id') id: string,
+    @Body('status') status: string,
+  ) {
+    return this.venuesService.updateReservationStatus(id, status);
   }
 
   // Admin endpoints (JWT protected)

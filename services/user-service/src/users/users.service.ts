@@ -198,8 +198,14 @@ export class UsersService {
   }
 
   async adminStats() {
-    const total = await this.prisma.profile.count();
-    return { totalUsers: total };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [total, newUsersToday] = await Promise.all([
+      this.prisma.profile.count(),
+      this.prisma.profile.count({ where: { createdAt: { gte: today } } }),
+    ]);
+    return { totalUsers: total, newUsersToday };
   }
 
   // --- Going Tonight ---
@@ -346,6 +352,81 @@ export class UsersService {
       take: 10,
       select: { id: true, username: true, displayName: true, avatarUrl: true, country: true },
     });
+  }
+
+  // --- Premium Subscription ---
+
+  async getSubscription(userId: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    if (!sub) {
+      return { userId, plan: 'free', expiresAt: null };
+    }
+    return sub;
+  }
+
+  async updateSubscription(userId: string, plan: string, expiresAt?: string) {
+    const validPlans = ['free', 'premium', 'vip'];
+    if (!validPlans.includes(plan)) {
+      throw new ConflictException(`Invalid plan. Must be one of: ${validPlans.join(', ')}`);
+    }
+
+    return this.prisma.subscription.upsert({
+      where: { userId },
+      create: {
+        userId,
+        plan,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+      },
+      update: {
+        plan,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+      },
+    });
+  }
+
+  // --- Bar Buddy ---
+
+  async createBuddyRequest(userId: string, data: { area: string; message?: string; genres?: string[] }) {
+    // Deactivate any existing active request
+    await this.prisma.barBuddyRequest.updateMany({
+      where: { userId, isActive: true },
+      data: { isActive: false },
+    });
+
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 6);
+
+    const request = await this.prisma.barBuddyRequest.create({
+      data: {
+        userId,
+        area: data.area,
+        message: data.message ?? null,
+        genres: data.genres ?? [],
+        expiresAt,
+      },
+    });
+
+    this.publishEvent('bar_buddy.request_created', { userId, area: data.area });
+    return request;
+  }
+
+  async getActiveBuddyRequests(area?: string) {
+    const now = new Date();
+    const where: any = { isActive: true, expiresAt: { gt: now } };
+    if (area) where.area = area;
+
+    return this.prisma.barBuddyRequest.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async cancelBuddyRequest(userId: string) {
+    await this.prisma.barBuddyRequest.updateMany({
+      where: { userId, isActive: true },
+      data: { isActive: false },
+    });
+    return { message: 'Bar buddy request cancelled' };
   }
 
   private async publishEvent(topic: string, payload: Record<string, unknown>) {

@@ -123,3 +123,37 @@ model Report {
 
   @@map("reports")
 }
+
+model Ad {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId       String?   @map("venue_id") @db.Uuid
+  title         String    @db.VarChar(100)
+  body          String?
+  imageUrl      String?   @map("image_url")
+  targetUrl     String?   @map("target_url")
+  targetArea    String?   @map("target_area") @db.VarChar(50)
+  targetCountry String?   @map("target_country") @db.VarChar(2)
+  budget        Decimal?  @db.Decimal(10, 2)
+  spent         Decimal   @default(0) @db.Decimal(10, 2)
+  impressions   Int       @default(0)
+  clicks        Int       @default(0)
+  status        String    @default("draft") @db.VarChar(20) // draft, active, paused, completed
+  startDate     DateTime? @map("start_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("ads")
+}
+
+model FaceTag {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  taggedBy  String   @map("tagged_by") @db.Uuid
+  x         Decimal  @db.Decimal(5, 4) // face position 0-1
+  y         Decimal  @db.Decimal(5, 4)
+  confirmed Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("face_tags")
+}

@@ -13,6 +13,7 @@ CREATE DATABASE barblink_scraper;
 CREATE DATABASE barblink_dj;
 CREATE DATABASE barblink_events;
 CREATE DATABASE barblink_community;
+CREATE DATABASE barblink_order;
 
 -- Enable extensions on each service database.
 \c barblink_auth;       CREATE EXTENSION IF NOT EXISTS "pgcrypto"; CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -27,3 +28,4 @@ CREATE DATABASE barblink_community;
 \c barblink_dj;         CREATE EXTENSION IF NOT EXISTS "pgcrypto"; CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 \c barblink_events;     CREATE EXTENSION IF NOT EXISTS "pgcrypto"; CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 \c barblink_community;  CREATE EXTENSION IF NOT EXISTS "pgcrypto"; CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+\c barblink_order;      CREATE EXTENSION IF NOT EXISTS "pgcrypto"; CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

@@ -81,6 +81,73 @@ export class CheckinsService {
     });
   }
 
+  // --- Group Check-In ---
+
+  async createGroupCheckin(creatorId: string, venueId: string, name?: string, memberIds?: string[]) {
+    const group = await this.prisma.groupCheckin.create({
+      data: {
+        venueId,
+        creatorId,
+        name: name || null,
+        members: {
+          create: { userId: creatorId },
+        },
+      },
+      include: { members: true },
+    });
+
+    // Auto check-in the creator
+    await this.checkin(creatorId, { venueId } as any);
+
+    // Add additional members and auto check-in each
+    if (memberIds?.length) {
+      const uniqueMembers = memberIds.filter((id) => id !== creatorId);
+      for (const userId of uniqueMembers) {
+        await this.prisma.groupCheckinMember.create({
+          data: { groupId: group.id, userId },
+        }).catch(() => { /* ignore duplicate */ });
+        await this.checkin(userId, { venueId } as any).catch(() => { /* silent */ });
+      }
+    }
+
+    return this.prisma.groupCheckin.findUnique({
+      where: { id: group.id },
+      include: { members: true },
+    });
+  }
+
+  async joinGroupCheckin(groupId: string, userId: string) {
+    const group = await this.prisma.groupCheckin.findUnique({
+      where: { id: groupId },
+    });
+    if (!group) {
+      throw new NotFoundException('Group check-in not found');
+    }
+
+    await this.prisma.groupCheckinMember.create({
+      data: { groupId, userId },
+    });
+
+    // Auto check-in the new member at the group's venue
+    await this.checkin(userId, { venueId: group.venueId } as any);
+
+    return this.prisma.groupCheckin.findUnique({
+      where: { id: groupId },
+      include: { members: true },
+    });
+  }
+
+  async getGroupCheckin(groupId: string) {
+    const group = await this.prisma.groupCheckin.findUnique({
+      where: { id: groupId },
+      include: { members: true },
+    });
+    if (!group) {
+      throw new NotFoundException('Group check-in not found');
+    }
+    return group;
+  }
+
   // --- Admin endpoints ---
 
   async adminListCheckins(query: { page?: number; limit?: number }) {

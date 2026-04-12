@@ -20,3 +20,23 @@ model Checkin {
 
   @@map("checkins")
 }
+
+model GroupCheckin {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId   String   @map("venue_id") @db.Uuid
+  creatorId String   @map("creator_id") @db.Uuid
+  name      String?  @db.VarChar(60)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  members   GroupCheckinMember[]
+  @@map("group_checkins")
+}
+
+model GroupCheckinMember {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId  String   @map("group_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  joinedAt DateTime @default(now()) @map("joined_at") @db.Timestamptz()
+  group    GroupCheckin @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  @@unique([groupId, userId])
+  @@map("group_checkin_members")
+}

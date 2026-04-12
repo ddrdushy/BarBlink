@@ -31,3 +31,17 @@ model DeviceToken {
 
   @@map("device_tokens")
 }
+
+model NotificationPreference {
+  id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String  @unique @map("user_id") @db.Uuid
+  pushEnabled     Boolean @default(true) @map("push_enabled")
+  emailEnabled    Boolean @default(true) @map("email_enabled")
+  likesEnabled    Boolean @default(true) @map("likes_enabled")
+  commentsEnabled Boolean @default(true) @map("comments_enabled")
+  followsEnabled  Boolean @default(true) @map("follows_enabled")
+  checkinsEnabled Boolean @default(true) @map("checkins_enabled")
+  eventsEnabled   Boolean @default(true) @map("events_enabled")
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  @@map("notification_preferences")
+}

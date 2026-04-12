@@ -3,12 +3,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAdminAuth } from '@/components/AdminAuthProvider';
 import { StatsCard } from '@/components/StatsCard';
+import { authGet } from '@/lib/api';
 
 interface WaitlistEntry {
   id: string;
   email: string;
   source: string;
   createdAt: string;
+}
+
+interface WaitlistStats {
+  total: number;
+  addedToday: number;
+  addedThisWeek: number;
 }
 
 // Fallback data shown when waitlist API is not connected
@@ -27,41 +34,43 @@ const MOCK_WAITLIST: WaitlistEntry[] = [
 
 const PAGE_SIZE = 5;
 
-const WAITLIST_API = process.env.NEXT_PUBLIC_WAITLIST_API || '';
-
 export default function WaitlistPage() {
-  useAdminAuth();
+  const { token } = useAdminAuth();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [showLaunchConfirm, setShowLaunchConfirm] = useState(false);
   const [entries, setEntries] = useState<WaitlistEntry[]>(MOCK_WAITLIST);
   const [usingMock, setUsingMock] = useState(true);
+  const [apiStats, setApiStats] = useState<WaitlistStats | null>(null);
 
   useEffect(() => {
-    if (!WAITLIST_API) return;
-    fetch(`${WAITLIST_API}/waitlist`, { headers: { 'Content-Type': 'application/json' } })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed');
-        return res.json();
-      })
-      .then((data: { items?: WaitlistEntry[]; emails?: WaitlistEntry[] }) => {
-        const items = data.items || data.emails;
-        if (items && items.length > 0) {
-          setEntries(items);
+    if (!token) return;
+
+    // Fetch real waitlist data from auth-service
+    authGet<{ items: WaitlistEntry[]; total: number }>('/admin/waitlist?limit=200', token)
+      .then((data) => {
+        if (data.items && data.items.length > 0) {
+          setEntries(data.items);
           setUsingMock(false);
         }
       })
       .catch(() => {
-        // Waitlist API not reachable, keep mock data
+        // Auth-service not reachable, keep mock data
       });
-  }, []);
+
+    // Fetch waitlist stats from auth-service
+    authGet<WaitlistStats>('/admin/waitlist/stats', token)
+      .then((stats) => setApiStats(stats))
+      .catch(() => {});
+  }, [token]);
 
   const now = new Date();
   const todayStr = now.toDateString();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const addedToday = entries.filter((e) => new Date(e.createdAt).toDateString() === todayStr).length;
-  const addedThisWeek = entries.filter((e) => new Date(e.createdAt) >= weekAgo).length;
+  // Use API stats if available, otherwise calculate from local entries
+  const addedToday = apiStats?.addedToday ?? entries.filter((e) => new Date(e.createdAt).toDateString() === todayStr).length;
+  const addedThisWeek = apiStats?.addedThisWeek ?? entries.filter((e) => new Date(e.createdAt) >= weekAgo).length;
 
   const filtered = useMemo(() => {
     if (!search.trim()) return entries;

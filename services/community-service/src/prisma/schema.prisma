@@ -62,3 +62,23 @@ model NeighbourhoodGroup {
 
   @@map("neighbourhood_groups")
 }
+
+model LoyaltyPoints {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  venueId   String   @map("venue_id") @db.Uuid
+  points    Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  @@unique([userId, venueId])
+  @@map("loyalty_points")
+}
+
+model Reward {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId     String  @map("venue_id") @db.Uuid
+  name        String  @db.VarChar(100)
+  description String?
+  pointsCost  Int     @map("points_cost")
+  isActive    Boolean @default(true) @map("is_active")
+  @@map("rewards")
+}

@@ -5,6 +5,8 @@ import { AdminAuthController } from './admin-auth.controller';
 import { AdminAuthService } from './admin-auth.service';
 import { ApplicationsController } from './applications.controller';
 import { ApplicationsService } from './applications.service';
+import { PromotersController } from './promoters.controller';
+import { PromotersService } from './promoters.service';
 
 @Module({
   imports: [
@@ -17,7 +19,7 @@ import { ApplicationsService } from './applications.service';
       }),
     }),
   ],
-  controllers: [AdminAuthController, ApplicationsController],
-  providers: [AdminAuthService, ApplicationsService],
+  controllers: [AdminAuthController, ApplicationsController, PromotersController],
+  providers: [AdminAuthService, ApplicationsService, PromotersService],
 })
 export class AdminAuthModule {}

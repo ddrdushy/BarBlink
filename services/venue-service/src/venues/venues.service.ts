@@ -245,6 +245,68 @@ export class VenuesService {
     };
   }
 
+  // --- Reservations ---
+
+  async createReservation(
+    userId: string,
+    venueId: string,
+    data: { date: string; time: string; partySize: number; name: string; phone?: string; notes?: string },
+  ) {
+    const venue = await this.prisma.venue.findUnique({ where: { id: venueId } });
+    if (!venue) throw new NotFoundException('Venue not found');
+
+    const reservation = await this.prisma.reservation.create({
+      data: {
+        venueId,
+        userId,
+        date: new Date(data.date),
+        time: data.time,
+        partySize: data.partySize,
+        name: data.name,
+        phone: data.phone ?? null,
+        notes: data.notes ?? null,
+        status: 'pending',
+      },
+    });
+
+    this.publishEvent('reservation.created', { reservationId: reservation.id, venueId, userId });
+    return reservation;
+  }
+
+  async getUserReservations(userId: string) {
+    return this.prisma.reservation.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: { venue: { select: { id: true, name: true, coverPhotoUrl: true, area: true } } },
+    });
+  }
+
+  async getVenueReservations(venueId: string, date?: string) {
+    const where: any = { venueId };
+    if (date) {
+      where.date = new Date(date);
+    }
+    return this.prisma.reservation.findMany({
+      where,
+      orderBy: { date: 'asc' },
+    });
+  }
+
+  async updateReservationStatus(id: string, status: string) {
+    const reservation = await this.prisma.reservation.findUnique({ where: { id } });
+    if (!reservation) throw new NotFoundException('Reservation not found');
+
+    const validStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+    if (!validStatuses.includes(status)) {
+      throw new BadRequestException(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+    }
+
+    return this.prisma.reservation.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
   private async publishEvent(topic: string, payload: Record<string, unknown>) {
     try {
       const { Kafka } = require('kafkajs');

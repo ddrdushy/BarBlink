@@ -57,6 +57,31 @@ export class NotificationsController {
   removeDevice(@Body() body: { token: string }) {
     return this.notificationsService.removeDevice(body.token);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('preferences')
+  getPreferences(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    return this.notificationsService.getPreferences(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('preferences')
+  updatePreferences(
+    @Req() req: Request,
+    @Body() body: {
+      pushEnabled?: boolean;
+      emailEnabled?: boolean;
+      likesEnabled?: boolean;
+      commentsEnabled?: boolean;
+      followsEnabled?: boolean;
+      checkinsEnabled?: boolean;
+      eventsEnabled?: boolean;
+    },
+  ) {
+    const { userId } = req.user as { userId: string };
+    return this.notificationsService.updatePreferences(userId, body);
+  }
 }
 
 @Controller('admin')

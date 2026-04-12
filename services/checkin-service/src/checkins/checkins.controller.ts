@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { CheckinsService } from './checkins.service';
 import { CreateCheckinDto } from './dto/checkin.dto';
+import { CreateGroupCheckinDto } from './dto/group-checkin.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Request } from 'express';
 
@@ -38,6 +39,26 @@ export class CheckinsController {
   @Get('tonight')
   getTonight() {
     return this.checkinsService.getTonight();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('group')
+  createGroupCheckin(@Req() req: Request, @Body() dto: CreateGroupCheckinDto) {
+    const { userId } = req.user as { userId: string };
+    return this.checkinsService.createGroupCheckin(userId, dto.venueId, dto.name, dto.memberIds);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('group/:id/join')
+  joinGroupCheckin(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as { userId: string };
+    return this.checkinsService.joinGroupCheckin(id, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('group/:id')
+  getGroupCheckin(@Param('id') id: string) {
+    return this.checkinsService.getGroupCheckin(id);
   }
 }
 
