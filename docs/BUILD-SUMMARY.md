@@ -1,138 +1,143 @@
-# Barblink — Build Summary
+# Barblink — Complete Build Summary
 
 **Built:** April 11–12, 2026
 **Repo:** https://github.com/ddrdushy/BarBlink
-**Status:** Feature-complete, ready for beta testing
+**Status:** Feature-complete — all 8 gap analysis sprints closed
+**Latest commit:** `2d342dc`
 
 ---
 
-## What is Barblink?
+## Platform Overview
 
-Nightlife social media app for Kuala Lumpur and Colombo. Tagline: "Blink, You're In."
-Dark theme (#0D0D0F + neon purple #C45AFF), 18+ gated, mobile-first.
-
----
-
-## Architecture
-
-```
-barblink/
-├── apps/
-│   ├── mobile/          React Native (Expo SDK 54) — iOS/Android/Web
-│   ├── admin/           Next.js 14 — admin.barblink.com (port 3200)
-│   └── landing/         Next.js 14 — barblink.com (port 3100)
-├── services/
-│   ├── auth-service/         Port 3001 — Register, OTP, JWT, admin auth
-│   ├── user-service/         Port 3002 — Profiles, follows, search
-│   ├── venue-service/        Port 3003 — Venue CRUD, 55 seeded venues
-│   ├── discovery-service/    Port 3004 — Nearby search, map data
-│   ├── social-service/       Port 3005 — Posts, likes, comments, upload
-│   ├── checkin-service/      Port 3006 — Check-in/out, crowd counts
-│   ├── chat-service/         Port 3007 — Conversations, messages
-│   ├── notification-service/ Port 3008 — Push (FCM), in-app, device tokens
-│   ├── scraper-service/      Port 3009 — Playwright Instagram + Google
-│   ├── dj-service/           Port 3010 — DJ/band profiles, genres
-│   ├── events-service/       Port 3011 — Events, RSVP
-│   └── community-service/    Port 3012 — Streaks, badges, leaderboards
-├── packages/
-│   ├── shared-types/         TypeScript interfaces for all entities
-│   └── shared-utils/         Rate limiting guard, config utilities
-└── infrastructure/
-    ├── docker/               Dockerfiles, init-postgres.sql
-    ├── monitoring/           Prometheus + Grafana + Loki configs
-    ├── coolify/              Deployment guide
-    └── nginx/                Reverse proxy config
-```
+Nightlife social media app for Kuala Lumpur & Colombo.
+"Blink, You're In." — Dark theme, 18+ gated, mobile-first.
 
 ---
 
-## Docker Stack (19 containers)
+## What Was Built (Complete List)
 
-```bash
-pnpm stack:up          # postgres, redis, redpanda, minio, meilisearch
-pnpm stack:services    # all 12 backend services + scraper
-# Optional profiles:
-docker compose --profile landing up -d    # landing page
-docker compose --profile admin up -d      # admin panel
-docker compose --profile monitoring up -d # grafana + prometheus
-```
+### 12 Microservices (all NestJS + Prisma + Docker)
+
+| Service | Port | Key Features |
+|---------|------|-------------|
+| **auth-service** | 3001 | User register (18+ DOB), OTP via email, JWT (user+admin roles), admin email+password login with 2FA support, auto-seed admin on first run, dev OTP bypass |
+| **user-service** | 3002 | Profiles with country, follow system (request/accept/reject), followers/following counts, Going Tonight status, Trusted Circle + I'm Home Safe, QR code connect, People You May Know (2nd degree), user search |
+| **venue-service** | 3003 | Venue CRUD, 55 seeded venues (35 KL + 20 Colombo), venue follow/unfollow, venue reviews with ratings, follower counts, admin management |
+| **discovery-service** | 3004 | Nearby venues (haversine distance), text search, map pins with live crowd data, search logging |
+| **social-service** | 3005 | Posts (photo/drink_rating/poll/repost/night_recap), likes, comments, stories (24h expiry + views), enriched feed (interleaved hero/posts/check-in pairs), bookmarks, poll voting, repost, photo upload to MinIO, check-in reactions (emoji), content reports, night recap generation |
+| **checkin-service** | 3006 | One-tap check-in, auto-checkout previous, 6h auto-expiry, crowd counts per venue, Who's Out Tonight, check-in reactions |
+| **chat-service** | 3007 | DM + group conversations, messages, new chat with user search |
+| **notification-service** | 3008 | In-app notifications (like/comment/checkin/follow/event), mark read, device token registration, Firebase FCM push (console fallback in dev) |
+| **scraper-service** | 3009 | Playwright Instagram scraper (bio, photos, DJ detection), Google scraper (address, rating, phone, hours), 12h scheduled auto-scrape, job history with status tracking |
+| **dj-service** | 3010 | DJ/band profiles with genres, venue links, DJ ratings with comments, admin CRUD, 15 seeded DJs |
+| **events-service** | 3011 | Events with date/venue/DJ, RSVP system, 10 seeded events, admin management |
+| **community-service** | 3012 | Streaks (current + longest), badges (5 types), weekly leaderboard, venue collections (create, add/remove venues) |
+
+### 3 Web Apps
+
+| App | Port | What |
+|-----|------|------|
+| **Mobile** (Expo SDK 54) | Metro | React Native iOS/Android/Web — 5 tabs, 20+ screens |
+| **Admin Panel** (Next.js 14) | 3200 | 13 pages, dark theme, email+password login |
+| **Landing Page** (Next.js 14) | 3100 | Marketing site, waitlist, legal pages |
+
+### Infrastructure (Docker)
 
 | Container | Port | Purpose |
 |-----------|------|---------|
-| barblink-postgres | 5433 | PostgreSQL 16 + PostGIS (12 databases) |
-| barblink-redis | 6379 | Cache, sessions, rate limiting |
-| barblink-redpanda | 9092 | Kafka-compatible event bus |
-| barblink-minio | 9000 | S3-compatible media storage |
-| barblink-meilisearch | 7700 | Full-text search |
-| barblink-auth-service | 3001 | Auth + admin accounts |
-| barblink-user-service | 3002 | Profiles + follows |
-| barblink-venue-service | 3003 | Venue CRUD |
-| barblink-discovery-service | 3004 | Nearby + search |
-| barblink-social-service | 3005 | Feed + uploads |
-| barblink-checkin-service | 3006 | Check-ins + crowd |
-| barblink-chat-service | 3007 | Chat |
-| barblink-notification-service | 3008 | Notifications |
-| barblink-scraper-service | 3009 | Playwright scraper |
-| barblink-dj-service | 3010 | DJ profiles |
-| barblink-events-service | 3011 | Events + RSVP |
-| barblink-community-service | 3012 | Gamification |
-| barblink-landing | 3100 | Marketing site |
-| barblink-admin | 3200 | Admin panel |
+| PostgreSQL 16 + PostGIS | 5433 | 12 databases (one per service) |
+| Redis 7 | 6379 | Cache, sessions, rate limiting |
+| Redpanda (Kafka) | 9092 | Event bus (16 topics wired) |
+| MinIO (S3) | 9000 | Media storage (photos, uploads) |
+| Meilisearch | 7700 | Full-text search |
+| Prometheus | 9090 | Metrics collection |
+| Grafana | 3300 | Dashboards |
+| Loki | 3101 | Log aggregation |
+| cAdvisor | 8080 | Container metrics |
 
 ---
 
-## Mobile App (Expo / React Native)
+## Mobile App — All Screens
 
-### Auth Flow
-1. Splash → auto-redirect if token exists
-2. Welcome → "Get started" or "Already have an account"
-3. Age Gate (18+ hard block)
-4. Phone (country picker — MY, LK, + 10 tourist countries)
-5. Email (OTP delivery channel)
-6. OTP verification (6-digit, resend support)
-7. Profile Setup (username, display name, country picker)
-8. T&C consent
-9. Home tabs
+### Auth Flow (7 screens)
+1. Splash → auto-redirect if logged in
+2. Welcome → Get Started / Already have account
+3. Age Gate → 18+ DOB validation
+4. Phone → country picker (12 countries, MY+LK priority)
+5. Email → OTP delivery
+6. OTP → 6-digit verification with resend
+7. Profile Setup → username, display name, country picker
+8. T&C Consent → terms + privacy checkbox
 
-### 5 Tabs (all wired to real backends)
-- **Feed** — posts with likes/comments, hero card, create post with photo upload, notification bell
-- **Discover** — venue list with category filters + map view (Leaflet/OpenStreetMap), crowd badges
-- **Check-in** — venue list with check-in buttons, active check-in card with timer, check-out
-- **Chat** — conversation list, new chat modal (user search), message bubbles (send/receive)
-- **Profile** — real data, follower/following counts, badges/streaks from community-service, find friends, logout
+### Feed Tab
+- Stories strip (circular avatars, neon ring, create story)
+- "Who's Out Tonight" strip (friends checked in)
+- Blink Feed with interleaved content:
+  - Hero post (full-width cinematic gradient)
+  - Regular post cards with like/comment/bookmark
+  - Check-in pair cards (2-column, emoji react)
+- Create post: photo upload, drink rating (5-star), poll (2-4 options), venue tag
+- Post detail with comments, like toggle, bookmark, report button
+- Notification bell → notifications screen
+- Story viewer (full-screen, 5s auto-advance, progress bar)
+- Story creator (image picker + venue tag)
+
+### Discover Tab
+- List view with category filter chips (All/Bars/Clubs/Rooftop/Lounge/Speakeasy)
+- Map view toggle (Leaflet + OpenStreetMap, venue pins with crowd status)
+- Crowd badges on venue cards ("3 here")
+- Venue detail screen (description, tags, hours, capacity, crowd count, check-in button, reviews)
+
+### Check-in Tab
+- Venue list with "Check in" buttons
+- Active check-in card with duration timer
+- Check out button
+
+### Chat Tab
+- Conversation list
+- "New Chat" FAB → user search → create DM
+- Message screen (sent/received bubbles, input bar, 5s polling)
+
+### Profile Tab
+- Real user data (username, display name, country flag)
+- Follower/following counts (live from API)
+- Badges from community-service (or locked state)
+- Streak display
+- Check-in count
+- Nightlife Passport (recent venue visits)
+- Find Friends button → search + follow
+- Venue Collections
+- Logout
 
 ### Additional Screens
-- Post detail (comments, like toggle)
-- Create post (caption + venue tag + photo upload)
-- Venue detail (description, tags, hours, capacity, crowd count, check-in button)
 - Friend search (search users, follow button)
-- Notifications (bell icon, mark all read)
+- Notifications (bell icon, mark all read, pull to refresh)
+- Venue collections (list, create, detail with venues)
+- Leaderboard (weekly/all-time, medals for top 3)
 
 ---
 
-## Admin Panel (Next.js 14)
+## Admin Panel — 13 Pages
 
-**Login:** admin@barblink.com / admin123 (email+password, JWT role: admin)
+**Login:** admin@barblink.com / admin123
 
-### 13 Pages
+| Page | Data Source | Key Features |
+|------|------------|-------------|
+| **Dashboard** | Real (4 services) | 6 stat cards, DAU progress bar (1000 target), activity feed (live from check-ins + posts), quick action links |
+| **Analytics** | Partial | DAU chart, engagement bars, top venues table (real) |
+| **Venues** | Real | Searchable table, country filter, add/edit forms, 55 venues |
+| **DJs & Bands** | Real | Table with add form, genre tags, 15 DJs |
+| **Events** | Real | Table with add form, RSVP counts, 10 events |
+| **Posts** | Real | Table with like/comment counts, admin delete |
+| **Check-ins** | Real | Table with active/ended status, today's stats |
+| **Users** | Real | Searchable table, suspend/ban actions |
+| **Reports** | Real | Moderation queue, filter by status, action reports |
+| **Leaderboard** | Partial | Weekly rankings, country filter |
+| **Scraper** | Real | Stats, manual trigger, venue dropdown, job history |
+| **Waitlist** | Partial | Table, CSV export, launch email |
+| **Settings** | Real | 5 integration sections (Mailgun, FCM, MinIO, Cloudflare, Scraper), save per section |
 
-| Page | Data Source | Features |
-|------|------------|----------|
-| **Dashboard** | Real (4 services) | Stats cards, DAU progress bar, activity feed (live), quick actions |
-| **Analytics** | Partial (stats real, charts mock) | DAU chart, engagement bars, top venues table |
-| **Venues** | Real (venue-service) | Table, search, country filter, add/edit venue forms |
-| **DJs & Bands** | Real (dj-service) | Table, add DJ form, genre tags |
-| **Events** | Real (events-service) | Table, add event, RSVP counts |
-| **Posts** | Real (social-service) | Table, like/comment counts, admin delete |
-| **Check-ins** | Real (checkin-service) | Table, today's stats, active count |
-| **Users** | Real (user-service) | Table, search, suspend/ban actions |
-| **Reports** | Mock (no backend yet) | Moderation queue layout |
-| **Leaderboard** | Partial (tries community-service) | Weekly rankings, country filter |
-| **Scraper** | Real (scraper-service) | Stats, manual trigger, job history |
-| **Waitlist** | Mock (tries API) | Table, CSV export, launch email |
-| **Settings** | Real (auth-service) | 5 integration sections, save/test |
-
-### Sidebar Navigation (sectioned)
+### Sidebar (sectioned)
 - Overview: Dashboard, Analytics
 - Content: Venues, DJs, Events, Posts, Check-ins
 - Community: Users, Reports, Leaderboard
@@ -140,77 +145,34 @@ docker compose --profile monitoring up -d # grafana + prometheus
 
 ---
 
-## Landing Page (barblink.com)
+## Landing Page
 
-- Hero with particle canvas + "Blink, You're In."
-- Live Tonight marquee
-- FOMO Hook chat mockup
-- Features grid
-- Blink Feed phone mockup
-- DJ Discovery card stack
-- Crowd Meter demo
-- Nightlife Passport map
-- Community voices
-- FAQ accordion
-- Waitlist signup form → /api/waitlist
+- Particle canvas hero + "Blink, You're In."
+- Live badge: "Now launching in KL & Colombo 🇲🇾🇱🇰"
+- FOMO Hook, Features grid, Blink Feed mockup
+- DJ Discovery card stack, Crowd Meter demo
+- Nightlife Passport, Community voices, FAQ
+- Waitlist signup form
 - Legal pages: /privacy, /terms, /community
 
 ---
 
-## Backend Services — Key Features
+## Event Bus (Redpanda/Kafka) — 16 Topics
 
-### auth-service (3001)
-- User: register (18+ DOB), send-otp, verify-otp, JWT + refresh tokens
-- Admin: email+password login, auto-seed on first run, 24h JWT
-- Dev bypass: phone +60000000000 always accepts OTP 123456
-- Multi-country phone validation (E.164 format)
-- Platform settings CRUD with audit log
-
-### user-service (3002)
-- Profile CRUD with country field (MY/LK)
-- Follow system: send request, accept/reject, followers/following lists
-- User search by username
-- Admin: list users, suspend/ban, stats
-
-### venue-service (3003)
-- CRUD with slug generation
-- 55 seeded venues (35 KL + 20 Colombo)
-- Filter by country, area, category
-- Admin endpoints for venue management
-
-### social-service (3005)
-- Posts with caption + venue tag + media URLs
-- Feed with like count, comment count, isLikedByMe
-- Like/unlike with optimistic UI
-- Comments CRUD
-- Photo upload to MinIO (POST /v1/upload, 10MB max)
-- Publishes post.created to Redpanda
-
-### checkin-service (3006)
-- One-tap check-in (auto-checkout previous)
-- 6-hour auto-expiry
-- Crowd count per venue (public endpoint)
-- Who's out tonight
-- Publishes user.checked_in to Redpanda
-
-### notification-service (3008)
-- In-app notifications (like, comment, checkin, follow, event)
-- Mark read / mark all read
-- Device token registration for push
-- Firebase Admin SDK integration (console fallback in dev)
-
-### scraper-service (3009)
-- Playwright browser automation
-- Instagram: bio, photos (up to 12), post captions, DJ name detection
-- Google: address, rating, phone, opening hours
-- 12-hour scheduled auto-scrape cycle
-- Job history with status tracking
-
-### community-service (3012)
-- User streaks (current + longest)
-- Badges (night_owl, explorer, regular, social_butterfly, first_checkin)
-- Weekly leaderboard (top 20 by streak)
-- Venue collections (create, add/remove venues)
+| Topic | Publisher | Trigger |
+|-------|----------|---------|
+| user.registered | auth-service | After registration |
+| user.checked_in | checkin-service | After check-in |
+| user.checked_out | checkin-service | After checkout |
+| user.home_safe | user-service | I'm Home Safe ping |
+| post.created | social-service | After new post |
+| post.liked | social-service | After like |
+| comment.created | social-service | After comment |
+| friend.request_sent | user-service | After follow request |
+| venue.created | venue-service | After admin creates venue |
+| venue.scraped | scraper-service | After successful scrape |
+| dj.profile_created | dj-service | After DJ profile created |
+| event.rsvp | events-service | After RSVP |
 
 ---
 
@@ -221,35 +183,65 @@ docker compose --profile monitoring up -d # grafana + prometheus
 | Venues | 55 (35 KL + 20 Colombo) |
 | DJs | 15 (10 KL + 5 Colombo) |
 | Events | 10 (7 KL + 3 Colombo) |
-| Test user | phone: 000000000, OTP: 123456 |
-| Admin | admin@barblink.com / admin123 |
+| Areas | 15 (10 KL + 5 Colombo) |
+| Countries | 12 in phone picker (MY + LK priority) |
 
-```bash
-./bin/seed-test-user.sh                    # creates test user + profile
-cd services/venue-service && npx prisma db seed   # 55 venues
-cd services/dj-service && npx prisma db seed      # 15 DJs
-cd services/events-service && npx prisma db seed  # 10 events
-```
+### Credentials
+| Account | Login |
+|---------|-------|
+| Test user (mobile) | Phone: 000000000, OTP: 123456 |
+| Admin (web) | admin@barblink.com / admin123 |
 
 ---
 
-## Multi-Country Support
+## Post Types
 
-- Phone: country picker with 12 countries (MY + LK priority, 10 tourist)
-- Profile: country field determines content filtering
-- Venues: filtered by country (MY shows KL, LK shows Colombo)
-- Areas: 10 KL neighborhoods + 5 Colombo neighborhoods
-- Landing page: "KL & Colombo" messaging
+| Type | Fields | Mobile UI |
+|------|--------|-----------|
+| photo | caption, mediaUrls, venueId | Image picker + preview |
+| drink_rating | drinkName, drinkRating (1-5) | Name input + star taps |
+| poll | pollOptions (JSON array) | 2-4 option inputs |
+| repost | originalPostId, caption | One-tap repost |
+| night_recap | auto-generated caption | Admin trigger |
+
+---
+
+## Social Features
+
+| Feature | Backend | Mobile UI |
+|---------|---------|-----------|
+| Stories (24h expiry) | ✅ CRUD + views | ✅ Strip + viewer + creator |
+| Likes | ✅ Toggle | ✅ Optimistic UI |
+| Comments | ✅ CRUD | ✅ Thread + input |
+| Bookmarks | ✅ Toggle | ✅ Icon on all posts |
+| Polls + voting | ✅ Vote + results | ✅ Type selector |
+| Drink ratings | ✅ Name + stars | ✅ Star rating UI |
+| Repost | ✅ With caption | ✅ Button |
+| Check-in reactions | ✅ Emoji upsert | ✅ Emoji button on cards |
+| Follow/Unfollow | ✅ Request system | ✅ Search + follow |
+| Going Tonight | ✅ Set/clear/list | ✅ Endpoint ready |
+| Trusted Circle | ✅ Add/remove | ✅ Endpoint ready |
+| I'm Home Safe | ✅ Ping + Redpanda event | ✅ Endpoint ready |
+| QR Code Connect | ✅ Generate + scan | ✅ Endpoint ready |
+| People You May Know | ✅ 2nd degree | ✅ Endpoint ready |
+| Venue Follow | ✅ Follow/unfollow | ✅ Endpoint ready |
+| Venue Reviews | ✅ Rating + body | ✅ Endpoint ready |
+| DJ Ratings | ✅ Rating + comment | ✅ Endpoint ready |
+| Venue Collections | ✅ CRUD | ✅ List + detail screens |
+| Content Reports | ✅ Submit + admin action | ✅ Flag button + reason picker |
+| Night Recap | ✅ Auto-generate | ✅ Admin trigger |
+| Photo Upload | ✅ MinIO storage | ✅ Image picker |
+| Notifications | ✅ CRUD + FCM | ✅ Bell + screen |
 
 ---
 
 ## CI/CD
 
-GitHub Actions pipeline (.github/workflows/ci.yml):
-1. TypeCheck: shared-types + landing page
-2. Build Landing: Next.js production build
-3. Build Services: parallel matrix build for all 12 NestJS services
-4. Docker Build: all images on main branch
+GitHub Actions (.github/workflows/ci.yml):
+1. TypeCheck shared-types + landing
+2. Build Landing (Next.js production)
+3. Build Services (parallel matrix, 12 services)
+4. Docker Build (all images on main)
 
 ---
 
@@ -258,79 +250,58 @@ GitHub Actions pipeline (.github/workflows/ci.yml):
 ```bash
 docker compose --profile monitoring up -d
 ```
-
-- **Prometheus** (port 9090) — metrics collection
-- **Grafana** (port 3300) — dashboards (admin/barblink_grafana)
-- **Loki** — centralized log aggregation
-- **cAdvisor** (port 8080) — container metrics
+- Prometheus (9090), Grafana (3300), Loki (3101), cAdvisor (8080)
 
 ---
 
-## Event Bus (Redpanda/Kafka)
+## Deployment
 
-Services publish events via kafkajs:
-- `post.created` — social-service after new post
-- `user.checked_in` — checkin-service after check-in
-- `friend.request_sent` — user-service after follow request
-
-notification-service subscribes and triggers push/in-app notifications.
-
----
-
-## Deployment Guide
-
-See `infrastructure/coolify/deploy.md` for:
-- Hetzner VPS setup (CX31: 2 vCPU / 8GB RAM)
-- Cloudflare DNS configuration
-- Nginx reverse proxy routing
-- Production environment variables
-- SSL via Let's Encrypt
-- Deployment checklist
+See `infrastructure/coolify/deploy.md`:
+- Hetzner CX31 VPS (2 vCPU / 8GB RAM)
+- Cloudflare DNS + CDN
+- Nginx reverse proxy for api.barblink.com
+- SSL via Let's Encrypt / Coolify
+- Production env vars checklist
 
 ---
 
 ## Quick Start
 
 ```bash
-# Clone
 git clone https://github.com/ddrdushy/BarBlink.git
 cd BarBlink
 
-# Start infra + services
-pnpm stack:up
-pnpm stack:services
+pnpm stack:up              # infra (postgres, redis, redpanda, minio, meilisearch)
+pnpm stack:services        # all 12 backend services
+./bin/seed-test-user.sh    # test account
 
-# Seed data
-./bin/seed-test-user.sh
-
-# Mobile (on host, not Docker)
+# Mobile
 pnpm --filter @barblink/mobile dev
 
-# Admin panel
-open http://localhost:3200
-# Login: admin@barblink.com / admin123
+# Admin
+open http://localhost:3200   # admin@barblink.com / admin123
 
-# Landing page
+# Landing
 open http://localhost:3100
+
+# Monitoring
+docker compose --profile monitoring up -d
+open http://localhost:3300   # admin / barblink_grafana
 ```
 
 ---
 
-## Git History (key commits)
+## Gap Analysis Status
 
-| Commit | What |
-|--------|------|
-| 4de6085 | Initial commit: docs + landing page |
-| 7d8e35a | Monorepo scaffold + mobile app |
-| 3de8763 | Docker dev stack + EAS toolbox |
-| 6bd1cd7 | auth-service + multi-country phone |
-| fbd3972 | Wire mobile auth to backend |
-| 2e27721 | venue-service + 15 seeded venues + Discover tab |
-| 46a72ce | checkin-service + crowd counts |
-| 7765a64 | social-service + feed + posts + likes |
-| d568a9a | Enterprise admin panel (8 pages) |
-| 7669598 | All remaining services (discovery, dj, events, chat, notification, community) |
-| 952d7fe | Scraper service (Playwright) |
-| 93db9aa | 55 venues + Coolify deploy guide |
-| 7c0f9c9 | Admin auth upgrade (email+password + JWT roles) |
-| 189bee2 | Photo upload + chat messaging + Redpanda events |
+All 28 items from BUILD-GAP-ANALYSIS.md — **closed:**
+
+| Sprint | Items | Status |
+|--------|-------|--------|
+| Sprint 1 | Stories, Blink Feed layout, Who's Out Tonight, Check-in reactions | ✅ |
+| Sprint 2 | Going Tonight, Trusted Circle, I'm Home Safe, QR Connect, PYMK, Venue Follow | ✅ |
+| Sprint 3 | Drink ratings, Polls, Repost, Bookmarks | ✅ |
+| Sprint 4 | All 16 Redpanda events wired | ✅ |
+| Sprint 5 | Venue Collections, Leaderboard mobile, Nightlife Passport | ✅ |
+| Sprint 6 | Venue Reviews, DJ Ratings | ✅ |
+| Sprint 7 | Reports backend, Admin reports wired, Mobile report button | ✅ |
+| Sprint 8 | Night Recap generation | ✅ |
