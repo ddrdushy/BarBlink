@@ -35,6 +35,18 @@ interface CheckinCountData {
   count: number;
 }
 
+interface RecentCheckin {
+  id: string;
+  venueId: string;
+  venueName?: string;
+  checkedInAt: string;
+}
+
+interface RecentCheckinsResponse {
+  items: RecentCheckin[];
+  uniqueVenues: number;
+}
+
 const COUNTRY_FLAGS: Record<string, string> = {
   MY: '\u{1F1F2}\u{1F1FE}',
   LK: '\u{1F1F1}\u{1F1F0}',
@@ -54,6 +66,8 @@ export default function Profile() {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [streak, setStreak] = useState<number>(0);
   const [checkinCount, setCheckinCount] = useState<number>(0);
+  const [recentCheckins, setRecentCheckins] = useState<RecentCheckin[]>([]);
+  const [uniqueVenues, setUniqueVenues] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -82,6 +96,15 @@ export default function Profile() {
         .then((data) => {
           if (data && typeof data.count === 'number') {
             setCheckinCount(data.count);
+          }
+        })
+        .catch(() => {}),
+      // Fetch recent check-ins for passport
+      checkinGet<RecentCheckinsResponse>('/checkins/me/recent', token)
+        .then((data) => {
+          if (data && Array.isArray(data.items)) {
+            setRecentCheckins(data.items.slice(0, 10));
+            setUniqueVenues(data.uniqueVenues ?? 0);
           }
         })
         .catch(() => {}),
@@ -147,6 +170,13 @@ export default function Profile() {
           <Text style={styles.findFriendsArrow}>›</Text>
         </Pressable>
 
+        {/* My Scene */}
+        <Pressable style={styles.findFriendsBtn} onPress={() => router.push('/neighbourhoods')}>
+          <Text style={styles.findFriendsIcon}>🏙️</Text>
+          <Text style={styles.findFriendsText}>My Scene</Text>
+          <Text style={styles.findFriendsArrow}>›</Text>
+        </Pressable>
+
         {/* Streak */}
         {streak > 0 && (
           <View style={styles.streakCard}>
@@ -182,11 +212,34 @@ export default function Profile() {
         )}
 
         <Text style={styles.sectionLabel}>NIGHTLIFE PASSPORT</Text>
-        <View style={styles.passportCard}>
-          <Text style={styles.passportPlaceholder}>
-            Your map unlocks after your first check-in 🗺️
-          </Text>
-        </View>
+        {recentCheckins.length === 0 ? (
+          <View style={styles.passportCard}>
+            <Text style={styles.passportPlaceholder}>
+              Your map unlocks after your first check-in
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.passportCard}>
+            <View style={styles.passportHeader}>
+              <Text style={styles.passportCount}>{uniqueVenues}</Text>
+              <Text style={styles.passportCountLabel}>Unique Venues</Text>
+            </View>
+            <View style={styles.passportDivider} />
+            {recentCheckins.map((ci) => (
+              <View key={ci.id} style={styles.passportRow}>
+                <Text style={styles.passportPin}>{'*'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.passportVenue}>
+                    {ci.venueName || ci.venueId.slice(0, 8)}
+                  </Text>
+                  <Text style={styles.passportDate}>
+                    {new Date(ci.checkedInAt).toLocaleDateString()}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={{ marginTop: spacing.xxl }}>
           <NeonButton label="Log out" variant="ghost" onPress={handleLogout} />
@@ -303,5 +356,46 @@ const styles = StyleSheet.create({
     color: colors.inkMute,
     fontSize: 13,
     textAlign: 'center',
+  },
+  passportHeader: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  passportCount: {
+    color: colors.neonBright,
+    fontSize: 32,
+    fontWeight: '800',
+  },
+  passportCountLabel: {
+    color: colors.inkMute,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    marginTop: 2,
+  },
+  passportDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginBottom: spacing.md,
+  },
+  passportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: spacing.sm,
+  },
+  passportPin: {
+    color: colors.neon,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  passportVenue: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  passportDate: {
+    color: colors.inkFaint,
+    fontSize: 11,
+    marginTop: 1,
   },
 });

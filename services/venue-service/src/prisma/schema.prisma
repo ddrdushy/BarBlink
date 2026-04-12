@@ -40,8 +40,9 @@ model Venue {
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz()
 
-  photos VenuePhoto[]
-  hours  VenueHour[]
+  photos  VenuePhoto[]
+  hours   VenueHour[]
+  reviews VenueReview[]
 
   @@map("venues")
 }
@@ -81,4 +82,16 @@ model VenueFollow {
 
   @@unique([userId, venueId])
   @@map("venue_follows")
+}
+
+model VenueReview {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId       String   @map("venue_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  overallRating Int      @map("overall_rating") @db.SmallInt
+  body          String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  @@map("venue_reviews")
 }

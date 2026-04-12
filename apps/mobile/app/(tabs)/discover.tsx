@@ -170,6 +170,19 @@ export default function Discover() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.neon} />
           }
+          ListHeaderComponent={
+            <Pressable
+              style={styles.hotBanner}
+              onPress={() => router.push('/djs/trending')}
+            >
+              <Text style={styles.hotBannerEmoji}>🔥</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.hotBannerTitle}>Who's Hot</Text>
+                <Text style={styles.hotBannerSub}>See this week's top DJs & bands</Text>
+              </View>
+              <Text style={styles.hotBannerArrow}>›</Text>
+            </Pressable>
+          }
           renderItem={({ item }) => (
             <Pressable
               style={styles.card}
@@ -392,4 +405,19 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     overflow: 'hidden',
   },
+  hotBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,69,58,0.08)',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,69,58,0.2)',
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    gap: 12,
+  },
+  hotBannerEmoji: { fontSize: 28 },
+  hotBannerTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
+  hotBannerSub: { color: colors.inkMute, fontSize: 12, marginTop: 2 },
+  hotBannerArrow: { color: colors.inkMute, fontSize: 22, fontWeight: '300' },
 });

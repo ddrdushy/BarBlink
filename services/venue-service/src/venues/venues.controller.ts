@@ -39,6 +39,26 @@ export class VenuesController {
     return this.venuesService.getVenueFollowerCount(id);
   }
 
+  @Get('venues/:id/reviews')
+  getReviews(
+    @Param('id') id: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.venuesService.getReviews(id, page ? +page : 1, limit ? +limit : 20);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('venues/:id/reviews')
+  addReview(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: { overallRating: number; body?: string },
+  ) {
+    const { userId } = req.user as { userId: string };
+    return this.venuesService.addReview(userId, id, body);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('venues/:id/follow')
   followVenue(@Req() req: Request, @Param('id') id: string) {

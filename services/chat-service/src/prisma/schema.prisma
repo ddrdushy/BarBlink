@@ -40,6 +40,19 @@ model Message {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reactions    MessageReaction[]
 
   @@map("messages")
+}
+
+model MessageReaction {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId String @map("message_id") @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+  emoji     String @db.VarChar(10)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@map("message_reactions")
 }

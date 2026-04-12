@@ -52,3 +52,13 @@ model VenueCollectionItem {
   @@unique([collectionId, venueId])
   @@map("venue_collection_items")
 }
+
+model NeighbourhoodGroup {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @db.VarChar(50)
+  area      String   @unique @db.VarChar(50)
+  country   String   @default("MY") @db.VarChar(2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("neighbourhood_groups")
+}

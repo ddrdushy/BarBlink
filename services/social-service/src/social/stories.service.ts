@@ -34,6 +34,8 @@ export class StoriesService {
       },
     });
 
+    this.publishEvent('story.created', { storyId: story.id, userId });
+
     return story;
   }
 
@@ -105,5 +107,16 @@ export class StoriesService {
     await this.prisma.story.deleteMany({
       where: { expiresAt: { lt: new Date() } },
     });
+  }
+
+  private async publishEvent(topic: string, payload: Record<string, unknown>) {
+    try {
+      const { Kafka } = require('kafkajs');
+      const kafka = new Kafka({ brokers: [process.env.REDPANDA_BROKERS || 'localhost:9092'] });
+      const producer = kafka.producer();
+      await producer.connect();
+      await producer.send({ topic, messages: [{ value: JSON.stringify({ ...payload, timestamp: new Date().toISOString() }) }] });
+      await producer.disconnect();
+    } catch { /* silent - event publishing is non-critical */ }
   }
 }

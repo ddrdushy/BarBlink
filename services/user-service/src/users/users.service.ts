@@ -127,10 +127,15 @@ export class UsersService {
     if (!follow) throw new NotFoundException('Follow request not found');
 
     if (action === 'accepted') {
-      return this.prisma.follow.update({
+      const updated = await this.prisma.follow.update({
         where: { id: requestId },
         data: { status: 'accepted' },
       });
+      this.publishEvent('friend.request_accepted', {
+        fromUserId: follow.followerId,
+        toUserId: follow.followingId,
+      });
+      return updated;
     } else {
       return this.prisma.follow.update({
         where: { id: requestId },

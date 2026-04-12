@@ -1,16 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { encrypt, decrypt, hashForAudit } from '@barblink/shared-utils';
 
 interface SettingInput {
   key: string;
   value: string;
   category: string;
   secret?: boolean;
+  adminId?: string;
+  adminName?: string;
 }
 
 @Injectable()
 export class SettingsService {
   constructor(private prisma: PrismaService) {}
+
+  private getEncryptionKey(): Buffer | null {
+    const keyHex = process.env.SETTINGS_ENCRYPTION_KEY;
+    if (!keyHex) return null;
+    return Buffer.from(keyHex, 'hex');
+  }
 
   async getAll() {
     const settings = await this.prisma.platformSetting.findMany({
@@ -35,24 +44,60 @@ export class SettingsService {
 
   async getRawValue(key: string): Promise<string | null> {
     const setting = await this.prisma.platformSetting.findUnique({ where: { key } });
-    return setting?.value || null;
+    if (!setting?.value) return null;
+
+    // If the value is encrypted (secret + encryption key available), decrypt it
+    if (setting.isSecret) {
+      const encKey = this.getEncryptionKey();
+      if (encKey && setting.value.includes(':')) {
+        try {
+          return decrypt(setting.value, encKey);
+        } catch {
+          // Value may not be encrypted yet (pre-migration), return as-is
+          return setting.value;
+        }
+      }
+    }
+    return setting.value;
   }
 
   async set(input: SettingInput) {
-    return this.prisma.platformSetting.upsert({
+    let valueToStore = input.value;
+    const isSecret = input.secret ?? false;
+
+    // Encrypt secret values when encryption key is available
+    if (isSecret) {
+      const encKey = this.getEncryptionKey();
+      if (encKey) {
+        valueToStore = encrypt(input.value, encKey);
+      }
+    }
+
+    // Check if setting already exists (for audit action)
+    const existing = await this.prisma.platformSetting.findUnique({
+      where: { key: input.key },
+    });
+    const action = existing ? 'updated' : 'created';
+
+    const result = await this.prisma.platformSetting.upsert({
       where: { key: input.key },
       create: {
         key: input.key,
-        value: input.value,
+        value: valueToStore,
         category: input.category,
-        isSecret: input.secret ?? false,
+        isSecret,
       },
       update: {
-        value: input.value,
+        value: valueToStore,
         category: input.category,
-        isSecret: input.secret ?? false,
+        isSecret,
       },
     });
+
+    // Write audit log
+    await this.writeAuditLog(input.key, action, input.adminId, input.adminName, existing?.value);
+
+    return result;
   }
 
   async setBulk(settings: SettingInput[]) {
@@ -66,6 +111,41 @@ export class SettingsService {
   async delete(key: string) {
     await this.prisma.platformSetting.deleteMany({ where: { key } });
     return { message: `Setting ${key} deleted` };
+  }
+
+  async revealSetting(key: string, adminId: string, adminName?: string) {
+    const setting = await this.prisma.platformSetting.findUnique({ where: { key } });
+    if (!setting) throw new NotFoundException(`Setting "${key}" not found`);
+
+    let plainValue = setting.value;
+
+    if (setting.isSecret) {
+      const encKey = this.getEncryptionKey();
+      if (encKey && setting.value.includes(':')) {
+        try {
+          plainValue = decrypt(setting.value, encKey);
+        } catch {
+          // Value may not be encrypted yet, return as-is
+        }
+      }
+    }
+
+    // Write audit log for the reveal action
+    await this.writeAuditLog(key, 'revealed', adminId, adminName);
+
+    return {
+      key: setting.key,
+      value: plainValue,
+      category: setting.category,
+      isSecret: setting.isSecret,
+    };
+  }
+
+  async getAuditLog() {
+    return this.prisma.settingsAuditLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
   }
 
   async getIntegrationStatus() {
@@ -99,5 +179,27 @@ export class SettingsService {
   private maskValue(value: string): string {
     if (value.length <= 8) return '••••••••';
     return value.slice(0, 4) + '••••' + value.slice(-4);
+  }
+
+  private async writeAuditLog(
+    settingKey: string,
+    action: string,
+    adminId?: string,
+    adminName?: string,
+    oldValue?: string,
+  ) {
+    try {
+      await this.prisma.settingsAuditLog.create({
+        data: {
+          settingKey,
+          action,
+          adminId: adminId || '00000000-0000-0000-0000-000000000000',
+          adminName: adminName || null,
+          oldValueHash: oldValue ? hashForAudit(oldValue) : null,
+        },
+      });
+    } catch {
+      /* silent - audit logging is non-critical */
+    }
   }
 }

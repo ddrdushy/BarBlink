@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '../prisma/generated';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
@@ -113,6 +113,60 @@ export class VenuesService {
   async getVenueFollowerCount(venueId: string) {
     const count = await this.prisma.venueFollow.count({ where: { venueId } });
     return { venueId, followerCount: count };
+  }
+
+  // --- Venue Reviews ---
+
+  async getReviews(venueId: string, page = 1, limit = 20) {
+    const venue = await this.prisma.venue.findUnique({ where: { id: venueId } });
+    if (!venue) throw new NotFoundException('Venue not found');
+
+    const [items, total] = await Promise.all([
+      this.prisma.venueReview.findMany({
+        where: { venueId },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.venueReview.count({ where: { venueId } }),
+    ]);
+
+    return { items, total, page, totalPages: Math.ceil(total / limit) };
+  }
+
+  async addReview(userId: string, venueId: string, data: { overallRating: number; body?: string }) {
+    const venue = await this.prisma.venue.findUnique({ where: { id: venueId } });
+    if (!venue) throw new NotFoundException('Venue not found');
+
+    if (data.overallRating < 1 || data.overallRating > 5) {
+      throw new BadRequestException('Rating must be between 1 and 5');
+    }
+
+    return this.prisma.venueReview.create({
+      data: {
+        venueId,
+        userId,
+        overallRating: data.overallRating,
+        body: data.body ?? null,
+      },
+    });
+  }
+
+  async getAverageRating(venueId: string) {
+    const venue = await this.prisma.venue.findUnique({ where: { id: venueId } });
+    if (!venue) throw new NotFoundException('Venue not found');
+
+    const result = await this.prisma.venueReview.aggregate({
+      where: { venueId },
+      _avg: { overallRating: true },
+      _count: { id: true },
+    });
+
+    return {
+      venueId,
+      averageRating: result._avg.overallRating ?? null,
+      reviewCount: result._count.id,
+    };
   }
 
   private async publishEvent(topic: string, payload: Record<string, unknown>) {

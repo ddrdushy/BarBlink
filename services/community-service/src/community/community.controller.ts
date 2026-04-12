@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Delete,
-  Body, Param, UseGuards, Req,
+  Body, Param, Query, UseGuards, Req,
 } from '@nestjs/common';
 import { CommunityService } from './community.service';
 import { CreateCollectionDto } from './dto/create-collection.dto';
@@ -65,6 +65,18 @@ export class CommunityController {
   ) {
     const { userId } = req.user as { userId: string };
     return this.communityService.removeVenueFromCollection(userId, collectionId, venueId);
+  }
+
+  // --- Neighbourhood Groups ---
+
+  @Get('neighbourhoods')
+  getNeighbourhoods(@Query('country') country?: string) {
+    return this.communityService.getNeighbourhoods(country);
+  }
+
+  @Get('neighbourhoods/:area/feed')
+  getNeighbourhoodFeed(@Param('area') area: string) {
+    return this.communityService.getNeighbourhoodFeed(area);
   }
 }
 

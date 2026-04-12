@@ -113,6 +113,41 @@ export class ChatService {
     });
   }
 
+  async getUserConversations(userId: string) {
+    const memberships = await this.prisma.conversationMember.findMany({
+      where: { userId },
+      select: { conversationId: true },
+    });
+    return memberships.map((m) => m.conversationId);
+  }
+
+  async getMessage(messageId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
+    if (!message) throw new NotFoundException('Message not found');
+    return message;
+  }
+
+  async upsertReaction(messageId: string, userId: string, emoji: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
+    if (!message) throw new NotFoundException('Message not found');
+
+    return this.prisma.messageReaction.upsert({
+      where: { messageId_userId: { messageId, userId } },
+      create: { messageId, userId, emoji },
+      update: { emoji },
+    });
+  }
+
+  async getReactions(messageId: string) {
+    return this.prisma.messageReaction.findMany({
+      where: { messageId },
+    });
+  }
+
   // --- Admin endpoints ---
 
   async adminStats() {

@@ -13,9 +13,10 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { io, Socket } from 'socket.io-client';
 import { colors, radii, spacing, touchTarget } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { chatGet, chatPost } from '@/lib/api';
+import { chatGet, CHAT_API } from '@/lib/api';
 
 interface Message {
   id: string;
@@ -36,7 +37,11 @@ export default function ChatConversationScreen() {
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [convName, setConvName] = useState('Chat');
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const socketRef = useRef<Socket | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Fetch initial messages via HTTP, then switch to Socket.io for real-time
   const fetchMessages = useCallback(async () => {
     if (!token || !id) return;
     try {
@@ -47,12 +52,47 @@ export default function ChatConversationScreen() {
     }
   }, [token, id]);
 
+  // Socket.io connection
   useEffect(() => {
+    if (!token || !id) return;
+
+    // Load initial messages
     fetchMessages().finally(() => setLoading(false));
-    // Poll for new messages every 5 seconds
-    const interval = setInterval(fetchMessages, 5000);
-    return () => clearInterval(interval);
-  }, [fetchMessages]);
+
+    const socketUrl = CHAT_API.replace('/v1', '');
+    const socket = io(`${socketUrl}/chat`, {
+      auth: { token },
+      transports: ['websocket'],
+    });
+    socketRef.current = socket;
+
+    socket.on('message.new', (msg: Message) => {
+      setMessages((prev) => {
+        // Avoid duplicates
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+
+    socket.on('conversation.typing', (data: { userId: string; isTyping: boolean }) => {
+      if (data.userId === user?.id) return; // ignore own typing
+      setTypingUsers((prev) => {
+        if (data.isTyping && !prev.includes(data.userId)) {
+          return [...prev, data.userId];
+        }
+        if (!data.isTyping) {
+          return prev.filter((uid) => uid !== data.userId);
+        }
+        return prev;
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [token, id, fetchMessages, user?.id]);
 
   // Try to fetch conversation details for the header name
   useEffect(() => {
@@ -74,19 +114,32 @@ export default function ChatConversationScreen() {
     if (!token || !id || !inputText.trim() || sending) return;
     setSending(true);
     try {
-      const msg = await chatPost<Message>(
-        `/chat/conversations/${id}/messages`,
-        { body: inputText.trim() },
-        token,
-      );
-      setMessages((prev) => [...prev, msg]);
+      socketRef.current?.emit('message.send', {
+        conversationId: id,
+        body: inputText.trim(),
+      });
       setInputText('');
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      // Stop typing indicator
+      socketRef.current?.emit('typing.stop', { conversationId: id });
     } catch {
       /* silent */
     } finally {
       setSending(false);
     }
+  };
+
+  const handleTextChange = (text: string) => {
+    setInputText(text);
+    if (!id) return;
+
+    // Emit typing start
+    socketRef.current?.emit('typing.start', { conversationId: id });
+
+    // Clear existing timeout and set new one to stop typing after 2s of inactivity
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socketRef.current?.emit('typing.stop', { conversationId: id });
+    }, 2000);
   };
 
   const isMe = (senderId: string) => senderId === user?.id;
@@ -145,12 +198,21 @@ export default function ChatConversationScreen() {
           />
         )}
 
+        {/* Typing indicator */}
+        {typingUsers.length > 0 && (
+          <View style={styles.typingBar}>
+            <Text style={styles.typingText}>
+              {typingUsers.length === 1 ? 'Someone is typing...' : 'Multiple people typing...'}
+            </Text>
+          </View>
+        )}
+
         {/* Input bar */}
         <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
           <TextInput
             style={styles.input}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleTextChange}
             placeholder="Message..."
             placeholderTextColor={colors.inkFaint}
             multiline
@@ -262,4 +324,13 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { opacity: 0.4 },
   sendText: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  typingBar: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 4,
+  },
+  typingText: {
+    color: colors.inkFaint,
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
 });
