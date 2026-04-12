@@ -409,6 +409,42 @@ services:
     profiles: ["services"]
 
   # ---------------------------------------------------------------------------
+  # Vendor portal — Next.js web app. Enable with --profile portals
+  # ---------------------------------------------------------------------------
+  vendor-portal:
+    build:
+      context: ./apps/vendor-portal
+      dockerfile: Dockerfile
+    image: barblink/vendor-portal:latest
+    container_name: barblink-vendor-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL:-https://api.barblink.com/v1}
+      PORT: "3020"
+    ports:
+      - "${VENDOR_PORTAL_PORT:-3020}:3020"
+    profiles: ["portals"]
+
+  # ---------------------------------------------------------------------------
+  # DJ portal — Next.js web app. Enable with --profile portals
+  # ---------------------------------------------------------------------------
+  dj-portal:
+    build:
+      context: ./apps/dj-portal
+      dockerfile: Dockerfile
+    image: barblink/dj-portal:latest
+    container_name: barblink-dj-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL:-https://api.barblink.com/v1}
+      PORT: "3021"
+    ports:
+      - "${DJ_PORTAL_PORT:-3021}:3021"
+    profiles: ["portals"]
+
+  # ---------------------------------------------------------------------------
   # Landing page (optional, production-style image). Enable with --profile landing
   # ---------------------------------------------------------------------------
   landing:
