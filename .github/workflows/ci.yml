@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck:
+    name: TypeCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma clients
+        run: |
+          for svc in auth-service user-service venue-service checkin-service social-service discovery-service dj-service events-service chat-service notification-service community-service scraper-service; do
+            if [ -f "services/$svc/src/prisma/schema.prisma" ]; then
+              cd "services/$svc" && npx prisma generate && cd ../..
+            fi
+          done
+      - name: TypeCheck shared-types
+        run: pnpm --filter @barblink/shared-types typecheck
+      - name: TypeCheck landing
+        run: pnpm --filter @barblink/landing typecheck
+
+  build-landing:
+    name: Build Landing
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @barblink/landing build
+
+  build-services:
+    name: Build Services
+    runs-on: ubuntu-latest
+    needs: typecheck
+    strategy:
+      matrix:
+        service:
+          - auth-service
+          - user-service
+          - venue-service
+          - checkin-service
+          - social-service
+          - discovery-service
+          - dj-service
+          - events-service
+          - chat-service
+          - notification-service
+          - community-service
+          - scraper-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma
+        working-directory: services/${{ matrix.service }}
+        run: npx prisma generate
+      - name: Build
+        working-directory: services/${{ matrix.service }}
+        run: npx nest build
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [build-landing, build-services]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build all Docker images
+        run: |
+          docker compose --profile services --profile landing build
