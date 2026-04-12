@@ -109,3 +109,17 @@ model CheckinReaction {
   @@unique([userId, checkinId])
   @@map("checkin_reactions")
 }
+
+model Report {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId  String   @map("reporter_id") @db.Uuid
+  contentType String   @map("content_type") @db.VarChar(20) // post, comment, user
+  contentId   String   @map("content_id") @db.Uuid
+  reason      String   @db.VarChar(50) // inappropriate, underage, spam, harassment, fake_venue
+  status      String   @default("pending") @db.VarChar(20) // pending, actioned
+  actionTaken String?  @map("action_taken") @db.VarChar(50)
+  actionedBy  String?  @map("actioned_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("reports")
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -53,6 +54,7 @@ export default function PostDetailScreen() {
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [reported, setReported] = useState(false);
 
   useEffect(() => {
     if (!id || !token) return;
@@ -99,6 +101,34 @@ export default function PostDetailScreen() {
       if (post) setPost({ ...post, commentCount: post.commentCount + 1 });
     } catch { /* silent */ }
     setPosting(false);
+  };
+
+  const handleReport = () => {
+    if (!token || !id || reported) return;
+    const reasons = ['Inappropriate', 'Spam', 'Harassment', 'Underage'] as const;
+    Alert.alert(
+      'Report Post',
+      'Why are you reporting this post?',
+      [
+        ...reasons.map((reason) => ({
+          text: reason,
+          onPress: async () => {
+            try {
+              await socialPost('/reports', {
+                contentType: 'post',
+                contentId: id,
+                reason: reason.toLowerCase(),
+              }, token);
+              setReported(true);
+              Alert.alert('Reported', 'Thanks for helping keep Barblink safe.');
+            } catch {
+              Alert.alert('Error', 'Could not submit report. Try again.');
+            }
+          },
+        })),
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
   };
 
   if (loading) {
@@ -153,6 +183,11 @@ export default function PostDetailScreen() {
                 <Pressable onPress={toggleBookmark} style={styles.actionBtn}>
                   <Text style={styles.actionText}>
                     {isBookmarked ? '\uD83D\uDD16' : '\uD83D\uDCC4'} Save
+                  </Text>
+                </Pressable>
+                <Pressable onPress={handleReport} style={styles.actionBtn}>
+                  <Text style={[styles.actionText, reported && { color: colors.inkFaint }]}>
+                    {reported ? '\u2705 Reported' : '\uD83D\uDEA9 Report'}
                   </Text>
                 </Pressable>
               </View>

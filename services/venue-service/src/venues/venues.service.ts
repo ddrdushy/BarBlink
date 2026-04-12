@@ -59,9 +59,11 @@ export class VenuesService {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
-    return this.prisma.venue.create({
+    const venue = await this.prisma.venue.create({
       data: { ...dto, slug },
     });
+    this.publishEvent('venue.created', { venueId: venue.id });
+    return venue;
   }
 
   async update(id: string, dto: UpdateVenueDto) {
@@ -111,5 +113,16 @@ export class VenuesService {
   async getVenueFollowerCount(venueId: string) {
     const count = await this.prisma.venueFollow.count({ where: { venueId } });
     return { venueId, followerCount: count };
+  }
+
+  private async publishEvent(topic: string, payload: Record<string, unknown>) {
+    try {
+      const { Kafka } = require('kafkajs');
+      const kafka = new Kafka({ brokers: [process.env.REDPANDA_BROKERS || 'localhost:9092'] });
+      const producer = kafka.producer();
+      await producer.connect();
+      await producer.send({ topic, messages: [{ value: JSON.stringify({ ...payload, timestamp: new Date().toISOString() }) }] });
+      await producer.disconnect();
+    } catch { /* silent - event publishing is non-critical */ }
   }
 }

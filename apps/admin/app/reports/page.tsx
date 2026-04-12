@@ -1,49 +1,78 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAdminAuth } from '@/components/AdminAuthProvider';
 import { StatsCard } from '@/components/StatsCard';
+import { socialGet, socialPut } from '@/lib/api';
 
-type ReportStatus = 'Pending' | 'Approved' | 'Removed' | 'Warned' | 'Suspended';
-type ReportReason = 'Inappropriate' | 'Spam' | 'Harassment' | 'Underage';
-type ReportType = 'Post' | 'Comment' | 'User';
 type FilterTab = 'All' | 'Pending' | 'Actioned';
 
 interface Report {
   id: string;
-  type: ReportType;
-  contentPreview: string;
-  reportedBy: string;
-  reason: ReportReason;
-  date: string;
-  status: ReportStatus;
+  reporterId: string;
+  contentType: string;
+  contentId: string;
+  reason: string;
+  status: string;
+  actionTaken: string | null;
+  actionedBy: string | null;
+  createdAt: string;
 }
 
-// Empty for now — no reports backend yet
-const REPORTS: Report[] = [];
+interface ReportsResponse {
+  items: Report[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
 
-const STATUS_STYLES: Record<ReportStatus, string> = {
-  Pending: 'bg-yellow-500/20 text-yellow-400',
-  Approved: 'bg-live/20 text-live',
-  Removed: 'bg-danger/20 text-danger',
-  Warned: 'bg-orange-500/20 text-orange-400',
-  Suspended: 'bg-red-700/20 text-red-400',
+const STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-yellow-500/20 text-yellow-400',
+  actioned: 'bg-live/20 text-live',
 };
 
 export default function ReportsPage() {
-  useAdminAuth();
+  const { token } = useAdminAuth();
   const [filter, setFilter] = useState<FilterTab>('All');
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const pendingCount = REPORTS.filter((r) => r.status === 'Pending').length;
-  const actionedToday = REPORTS.filter(
-    (r) => r.status !== 'Pending' && new Date(r.date).toDateString() === new Date().toDateString()
+  const fetchReports = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const statusParam = filter === 'Pending' ? '?status=pending' : filter === 'Actioned' ? '?status=actioned' : '';
+      const data = await socialGet<ReportsResponse>(`/admin/reports${statusParam}`, token);
+      setReports(data.items);
+    } catch {
+      setReports([]);
+    }
+    setLoading(false);
+  }, [token, filter]);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  const handleReview = async (reportId: string) => {
+    if (!token) return;
+    try {
+      await socialPut<Report>(`/admin/reports/${reportId}`, { actionTaken: 'reviewed' }, token);
+      // Update local state
+      setReports((prev) =>
+        prev.map((r) =>
+          r.id === reportId ? { ...r, status: 'actioned', actionTaken: 'reviewed' } : r,
+        ),
+      );
+    } catch {
+      /* silent */
+    }
+  };
+
+  const pendingCount = reports.filter((r) => r.status === 'pending').length;
+  const actionedToday = reports.filter(
+    (r) => r.status === 'actioned' && new Date(r.createdAt).toDateString() === new Date().toDateString(),
   ).length;
-
-  const filtered = REPORTS.filter((r) => {
-    if (filter === 'Pending') return r.status === 'Pending';
-    if (filter === 'Actioned') return r.status !== 'Pending';
-    return true;
-  });
 
   return (
     <div>
@@ -58,7 +87,7 @@ export default function ReportsPage() {
           accent={pendingCount > 0 ? 'text-danger' : 'text-ink'}
         />
         <StatsCard label="Actioned Today" value={actionedToday} icon="✅" accent="text-live" />
-        <StatsCard label="Avg Response" value="--" icon="⏱️" accent="text-neon-bright" />
+        <StatsCard label="Total Reports" value={reports.length} icon="📋" accent="text-neon-bright" />
       </div>
 
       {/* Filter tabs */}
@@ -83,8 +112,8 @@ export default function ReportsPage() {
           <thead>
             <tr>
               <th>Type</th>
-              <th>Content</th>
-              <th>Reported By</th>
+              <th>Content ID</th>
+              <th>Reporter</th>
               <th>Reason</th>
               <th>Date</th>
               <th>Status</th>
@@ -92,35 +121,46 @@ export default function ReportsPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r) => (
+            {reports.map((r) => (
               <tr key={r.id}>
                 <td>
                   <span className="text-xs font-bold px-2 py-1 rounded-md bg-white/5 text-ink-mute">
-                    {r.type}
+                    {r.contentType}
                   </span>
                 </td>
-                <td className="max-w-[300px] truncate">{r.contentPreview.slice(0, 60)}</td>
-                <td className="text-ink-mute text-sm">{r.reportedBy}</td>
+                <td className="max-w-[200px] truncate text-sm font-mono text-ink-mute">
+                  {r.contentId.slice(0, 8)}...
+                </td>
+                <td className="text-ink-mute text-sm font-mono">{r.reporterId.slice(0, 8)}...</td>
                 <td className="text-ink-mute text-sm">{r.reason}</td>
-                <td className="text-ink-mute text-sm">{new Date(r.date).toLocaleDateString()}</td>
+                <td className="text-ink-mute text-sm">{new Date(r.createdAt).toLocaleDateString()}</td>
                 <td>
-                  <span className={`text-xs font-bold px-2 py-1 rounded-md ${STATUS_STYLES[r.status]}`}>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-md ${STATUS_STYLES[r.status] || 'bg-white/5 text-ink-mute'}`}>
                     {r.status}
                   </span>
                 </td>
                 <td>
-                  {r.status === 'Pending' && (
-                    <button className="text-neon-bright text-xs font-semibold hover:underline">
+                  {r.status === 'pending' && (
+                    <button
+                      onClick={() => handleReview(r.id)}
+                      className="text-neon-bright text-xs font-semibold hover:underline"
+                    >
                       Review
                     </button>
+                  )}
+                  {r.status === 'actioned' && r.actionTaken && (
+                    <span className="text-xs text-ink-faint">{r.actionTaken}</span>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && (
+        {!loading && reports.length === 0 && (
           <div className="py-12 text-center text-ink-faint text-sm">No reports yet</div>
+        )}
+        {loading && (
+          <div className="py-12 text-center text-ink-faint text-sm">Loading...</div>
         )}
       </div>
     </div>

@@ -27,6 +27,13 @@ export class ScraperService {
       results.google = await this.scrapeGoogle(dto.venueId);
     }
 
+    const anySuccess =
+      (results.instagram && results.instagram.status === 'success') ||
+      (results.google && results.google.status === 'success');
+    if (anySuccess) {
+      this.publishEvent('venue.scraped', { venueId: dto.venueId });
+    }
+
     return results;
   }
 
@@ -251,5 +258,16 @@ export class ScraperService {
     } catch (error: any) {
       this.logger.error(`[Scheduler] Cycle failed: ${error.message}`);
     }
+  }
+
+  private async publishEvent(topic: string, payload: Record<string, unknown>) {
+    try {
+      const { Kafka } = require('kafkajs');
+      const kafka = new Kafka({ brokers: [process.env.REDPANDA_BROKERS || 'localhost:9092'] });
+      const producer = kafka.producer();
+      await producer.connect();
+      await producer.send({ topic, messages: [{ value: JSON.stringify({ ...payload, timestamp: new Date().toISOString() }) }] });
+      await producer.disconnect();
+    } catch { /* silent - event publishing is non-critical */ }
   }
 }

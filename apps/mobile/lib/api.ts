@@ -155,6 +155,33 @@ export function communityGet<T>(path: string, token: string): Promise<T> {
   return apiFetch<T>(COMMUNITY_API, path, { method: 'GET', token });
 }
 
+export function communityPost<T>(path: string, body: Record<string, unknown>, token: string): Promise<T> {
+  return apiFetch<T>(COMMUNITY_API, path, { method: 'POST', body, token });
+}
+
+export function communityDelete<T>(path: string, token: string): Promise<T> {
+  return apiFetch<T>(COMMUNITY_API, path, { method: 'DELETE', token });
+}
+
+export const DJ_API = process.env.EXPO_PUBLIC_DJ_API || `http://${DEV_HOST}:3004/v1`;
+export const EVENTS_API = process.env.EXPO_PUBLIC_EVENTS_API || `http://${DEV_HOST}:3009/v1`;
+
+export function djGet<T>(path: string): Promise<T> {
+  return apiFetch<T>(DJ_API, path, { method: 'GET' });
+}
+
+export function venuePost<T>(path: string, body: Record<string, unknown>, token: string): Promise<T> {
+  return apiFetch<T>(VENUE_API, path, { method: 'POST', body, token });
+}
+
+export function djPost<T>(path: string, body: Record<string, unknown>, token: string): Promise<T> {
+  return apiFetch<T>(DJ_API, path, { method: 'POST', body, token });
+}
+
+export function venueGetAuth<T>(path: string, token: string): Promise<T> {
+  return apiFetch<T>(VENUE_API, path, { method: 'GET', token });
+}
+
 export const CHAT_API = process.env.EXPO_PUBLIC_CHAT_API || `http://${DEV_HOST}:3007/v1`;
 
 export function chatGet<T>(path: string, token: string): Promise<T> {

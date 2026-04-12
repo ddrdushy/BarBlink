@@ -38,10 +38,12 @@ export class CheckinsService {
       throw new NotFoundException('Active check-in not found');
     }
 
-    return this.prisma.checkin.update({
+    const result = await this.prisma.checkin.update({
       where: { id: checkinId },
       data: { isActive: false, checkedOutAt: new Date() },
     });
+    this.publishEvent('user.checked_out', { userId, venueId: checkin.venueId, checkinId });
+    return result;
   }
 
   async getActive(userId: string) {

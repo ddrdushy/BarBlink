@@ -53,6 +53,7 @@ export class EventsService {
       const rsvp = await this.prisma.rsvp.create({
         data: { eventId, userId },
       });
+      this.publishEvent('event.rsvp', { eventId, userId });
       return rsvp;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -101,5 +102,16 @@ export class EventsService {
       this.prisma.event.count({ where: { status: 'upcoming' } }),
     ]);
     return { totalEvents: total, upcomingEvents: upcoming };
+  }
+
+  private async publishEvent(topic: string, payload: Record<string, unknown>) {
+    try {
+      const { Kafka } = require('kafkajs');
+      const kafka = new Kafka({ brokers: [process.env.REDPANDA_BROKERS || 'localhost:9092'] });
+      const producer = kafka.producer();
+      await producer.connect();
+      await producer.send({ topic, messages: [{ value: JSON.stringify({ ...payload, timestamp: new Date().toISOString() }) }] });
+      await producer.disconnect();
+    } catch { /* silent - event publishing is non-critical */ }
   }
 }

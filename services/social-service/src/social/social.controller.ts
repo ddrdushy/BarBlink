@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Delete,
+  Controller, Get, Post, Put, Delete,
   Body, Param, Query, UseGuards, Req,
 } from '@nestjs/common';
 import { SocialService } from './social.service';
@@ -9,6 +9,8 @@ import { FeedQueryDto } from './dto/feed-query.dto';
 import { ReactCheckinDto } from './dto/react-checkin.dto';
 import { VotePollDto } from './dto/vote-poll.dto';
 import { RepostDto } from './dto/repost.dto';
+import { SubmitReportDto } from './dto/submit-report.dto';
+import { ActionReportDto } from './dto/action-report.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Request } from 'express';
 
@@ -141,6 +143,13 @@ export class SocialController {
       limit ? parseInt(limit) : 20,
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('reports')
+  submitReport(@Req() req: Request, @Body() dto: SubmitReportDto) {
+    const { userId } = req.user as { userId: string };
+    return this.socialService.submitReport(userId, dto.contentType, dto.contentId, dto.reason);
+  }
 }
 
 @Controller('admin')
@@ -166,5 +175,36 @@ export class AdminSocialController {
   @Get('stats')
   stats() {
     return this.socialService.adminStats();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('reports')
+  listReports(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.socialService.getReports(
+      status || undefined,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('reports/:id')
+  actionReport(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: ActionReportDto,
+  ) {
+    const { userId } = req.user as { userId: string };
+    return this.socialService.actionReport(id, dto.actionTaken, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('night-recap/generate')
+  generateNightRecap() {
+    return this.socialService.generateNightRecapForAll();
   }
 }

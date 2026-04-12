@@ -131,6 +131,7 @@ export class SocialService {
       create: { userId, postId },
       update: {},
     });
+    this.publishEvent('post.liked', { postId, likedByUserId: userId, authorId: post.userId });
     return { message: 'Liked' };
   }
 
@@ -155,9 +156,11 @@ export class SocialService {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('Post not found');
 
-    return this.prisma.comment.create({
+    const comment = await this.prisma.comment.create({
       data: { postId, userId, body: dto.body },
     });
+    this.publishEvent('comment.created', { postId, commentId: comment.id, commenterId: userId, authorId: post.userId });
+    return comment;
   }
 
   // --- Poll voting ---
@@ -416,6 +419,153 @@ export class SocialService {
       tonightStrip,
       items,
     };
+  }
+
+  // --- Reports ---
+
+  async submitReport(reporterId: string, contentType: string, contentId: string, reason: string) {
+    const report = await this.prisma.report.create({
+      data: { reporterId, contentType, contentId, reason },
+    });
+    this.publishEvent('report.submitted', { reportId: report.id, reporterId, contentType, contentId, reason });
+    return report;
+  }
+
+  async getReports(status?: string, page = 1, limit = 20) {
+    const where = status ? { status } : {};
+    const [items, total] = await Promise.all([
+      this.prisma.report.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.report.count({ where }),
+    ]);
+    return {
+      items,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async actionReport(reportId: string, actionTaken: string, actionedBy: string) {
+    const report = await this.prisma.report.findUnique({ where: { id: reportId } });
+    if (!report) throw new NotFoundException('Report not found');
+
+    const updated = await this.prisma.report.update({
+      where: { id: reportId },
+      data: { status: 'actioned', actionTaken, actionedBy },
+    });
+    this.publishEvent('report.actioned', { reportId, actionTaken, actionedBy });
+    return updated;
+  }
+
+  // --- Night Recap ---
+
+  async generateNightRecap(userId: string) {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+
+    // 1. Fetch tonight's check-ins for this user from checkin-service
+    let checkins: { venueName?: string }[] = [];
+    try {
+      const res = await fetch(
+        `${this.checkinServiceUrl}/checkins/tonight?userId=${userId}`,
+      );
+      if (res.ok) {
+        const body = await res.json();
+        checkins = body.data ?? body ?? [];
+      }
+    } catch {
+      // checkin-service may be unavailable
+    }
+
+    // 2. Fetch posts created tonight by this user
+    const tonightPosts = await this.prisma.post.findMany({
+      where: {
+        userId,
+        isActive: true,
+        createdAt: { gte: twelveHoursAgo },
+      },
+      include: {
+        _count: { select: { likes: true } },
+      },
+    });
+
+    // If user had no activity tonight, skip recap
+    if (checkins.length === 0 && tonightPosts.length === 0) {
+      return null;
+    }
+
+    // 3. Compile recap caption
+    const venueNames = checkins
+      .map((c) => c.venueName)
+      .filter(Boolean);
+    const totalLikes = tonightPosts.reduce((sum, p) => sum + p._count.likes, 0);
+
+    const parts: string[] = ['Your night:'];
+    if (venueNames.length > 0) {
+      parts.push(`checked into ${venueNames.join(' and ')}.`);
+    }
+    if (tonightPosts.length > 0) {
+      parts.push(`${tonightPosts.length} post${tonightPosts.length > 1 ? 's' : ''}, ${totalLikes} like${totalLikes !== 1 ? 's' : ''} received.`);
+    }
+    const caption = parts.join(' ');
+
+    // 4. Create the recap post
+    const recap = await this.prisma.post.create({
+      data: {
+        userId,
+        type: 'night_recap',
+        caption,
+      },
+    });
+    this.publishEvent('post.created', { postId: recap.id, userId, type: 'night_recap' });
+    return recap;
+  }
+
+  async generateNightRecapForAll() {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+
+    // Find all users who had check-ins tonight (via posts as a proxy)
+    // In a real implementation this would query checkin-service for all tonight's check-in user IDs
+    const recentPosts = await this.prisma.post.findMany({
+      where: { isActive: true, createdAt: { gte: twelveHoursAgo } },
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+
+    // Also try to get tonight's check-in user IDs from checkin-service
+    let checkinUserIds: string[] = [];
+    try {
+      const res = await fetch(`${this.checkinServiceUrl}/checkins/tonight`);
+      if (res.ok) {
+        const body = await res.json();
+        const checkins = body.data ?? body ?? [];
+        checkinUserIds = [...new Set(checkins.map((c: { userId?: string }) => c.userId).filter(Boolean))] as string[];
+      }
+    } catch {
+      // degrade gracefully
+    }
+
+    // Merge unique user IDs
+    const allUserIds = [...new Set([
+      ...recentPosts.map((p) => p.userId),
+      ...checkinUserIds,
+    ])];
+
+    const results: { userId: string; recapId: string | null }[] = [];
+    for (const userId of allUserIds) {
+      try {
+        const recap = await this.generateNightRecap(userId);
+        results.push({ userId, recapId: recap?.id ?? null });
+      } catch {
+        results.push({ userId, recapId: null });
+      }
+    }
+
+    return { generated: results.filter((r) => r.recapId).length, total: allUserIds.length, results };
   }
 
   private async publishEvent(topic: string, payload: Record<string, unknown>) {

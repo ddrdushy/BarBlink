@@ -60,6 +60,10 @@ export const venuePut = <T>(path: string, body: Record<string, unknown>, token: 
 // Social service
 export const socialGet = <T>(path: string, token: string) =>
   apiFetch<T>(SOCIAL_API, path, { token });
+export const socialPost = <T>(path: string, body: Record<string, unknown>, token: string) =>
+  apiFetch<T>(SOCIAL_API, path, { method: 'POST', body, token });
+export const socialPut = <T>(path: string, body: Record<string, unknown>, token: string) =>
+  apiFetch<T>(SOCIAL_API, path, { method: 'PUT', body, token });
 export const socialDelete = <T>(path: string, token: string) =>
   apiFetch<T>(SOCIAL_API, path, { method: 'DELETE', token });
 

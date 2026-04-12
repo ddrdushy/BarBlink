@@ -54,6 +54,8 @@ export class AuthService {
     // Auto-send OTP
     await this.generateAndSendOtp(user.phone, user.email);
 
+    this.publishEvent('user.registered', { userId: user.id, phone: user.phone });
+
     return {
       userId: user.id,
       message: 'OTP sent to your email',
@@ -244,5 +246,16 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  private async publishEvent(topic: string, payload: Record<string, unknown>) {
+    try {
+      const { Kafka } = require('kafkajs');
+      const kafka = new Kafka({ brokers: [process.env.REDPANDA_BROKERS || 'localhost:9092'] });
+      const producer = kafka.producer();
+      await producer.connect();
+      await producer.send({ topic, messages: [{ value: JSON.stringify({ ...payload, timestamp: new Date().toISOString() }) }] });
+      await producer.disconnect();
+    } catch { /* silent - event publishing is non-critical */ }
   }
 }

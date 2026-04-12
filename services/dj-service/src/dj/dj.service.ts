@@ -49,9 +49,11 @@ export class DjService {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
-    return this.prisma.djProfile.create({
+    const dj = await this.prisma.djProfile.create({
       data: { ...dto, slug } as any,
     });
+    this.publishEvent('dj.profile_created', { djId: dj.id, name: dj.name });
+    return dj;
   }
 
   async update(id: string, dto: UpdateDjDto) {
@@ -63,5 +65,16 @@ export class DjService {
   async adminStats() {
     const total = await this.prisma.djProfile.count();
     return { totalDjs: total };
+  }
+
+  private async publishEvent(topic: string, payload: Record<string, unknown>) {
+    try {
+      const { Kafka } = require('kafkajs');
+      const kafka = new Kafka({ brokers: [process.env.REDPANDA_BROKERS || 'localhost:9092'] });
+      const producer = kafka.producer();
+      await producer.connect();
+      await producer.send({ topic, messages: [{ value: JSON.stringify({ ...payload, timestamp: new Date().toISOString() }) }] });
+      await producer.disconnect();
+    } catch { /* silent - event publishing is non-critical */ }
   }
 }
