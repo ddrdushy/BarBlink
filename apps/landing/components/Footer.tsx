@@ -47,9 +47,9 @@ export default function Footer() {
             <div className="text-[11px] uppercase tracking-[0.2em] text-ink-mute mb-4">Company</div>
             <ul className="space-y-2.5 text-[13.5px]">
               <li><a href="#" className="text-white/80 hover:text-neon-bright transition">About</a></li>
-              <li><a href="#" className="text-white/80 hover:text-neon-bright transition">For Venues</a></li>
+              <li><a href="https://venue.barblink.com/register" className="text-white/80 hover:text-neon-bright transition">Register Your Venue</a></li>
+              <li><a href="https://dj.barblink.com/register" className="text-white/80 hover:text-neon-bright transition">DJ / Band Registration</a></li>
               <li><a href="mailto:hello@barblink.com" className="text-white/80 hover:text-neon-bright transition">Contact</a></li>
-              <li><a href="#" className="text-white/80 hover:text-neon-bright transition">Press Kit</a></li>
             </ul>
           </div>
 

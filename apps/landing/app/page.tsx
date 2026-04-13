@@ -10,6 +10,7 @@ import Passport from '@/components/Passport';
 import Voices from '@/components/Voices';
 import Faq from '@/components/Faq';
 import Waitlist from '@/components/Waitlist';
+import PartnerCTA from '@/components/PartnerCTA';
 import Footer from '@/components/Footer';
 
 export default function Page() {
@@ -32,6 +33,7 @@ export default function Page() {
       <Voices />
       <Faq />
       <Waitlist />
+      <PartnerCTA />
       <Footer />
     </main>
   );
