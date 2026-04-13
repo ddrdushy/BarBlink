@@ -6,8 +6,35 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { apiPost } from '@/lib/api';
+
+// SecureStore doesn't work on web — use localStorage as fallback
+const storage = {
+  getItem: async (key: string): Promise<string | null> => {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    }
+    const SecureStore = await import('expo-secure-store');
+    return storage.getItem(key);
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+      return;
+    }
+    const SecureStore = await import('expo-secure-store');
+    await storage.setItem(key, value);
+  },
+  deleteItem: async (key: string): Promise<void> => {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+      return;
+    }
+    const SecureStore = await import('expo-secure-store');
+    await storage.deleteItem(key);
+  },
+};
 
 const KEYS = {
   access: 'bbk_access_token',
@@ -54,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const refreshToken = await SecureStore.getItemAsync(KEYS.refresh);
+        const refreshToken = await storage.getItem(KEYS.refresh);
         if (!refreshToken) {
           setIsLoading(false);
           return;
@@ -67,19 +94,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
 
         // Restore user from storage
-        const storedUser = await SecureStore.getItemAsync(KEYS.user);
+        const storedUser = await storage.getItem(KEYS.user);
         if (storedUser) {
           setUser(JSON.parse(storedUser));
         }
 
         setToken(result.accessToken);
-        await SecureStore.setItemAsync(KEYS.access, result.accessToken);
-        await SecureStore.setItemAsync(KEYS.refresh, result.refreshToken);
+        await storage.setItem(KEYS.access, result.accessToken);
+        await storage.setItem(KEYS.refresh, result.refreshToken);
       } catch {
         // Token expired or invalid — clear everything
-        await SecureStore.deleteItemAsync(KEYS.access);
-        await SecureStore.deleteItemAsync(KEYS.refresh);
-        await SecureStore.deleteItemAsync(KEYS.user);
+        await storage.deleteItem(KEYS.access);
+        await storage.deleteItem(KEYS.refresh);
+        await storage.deleteItem(KEYS.user);
       } finally {
         setIsLoading(false);
       }
@@ -90,16 +117,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (accessToken: string, refreshToken: string, authUser: AuthUser) => {
       setToken(accessToken);
       setUser(authUser);
-      await SecureStore.setItemAsync(KEYS.access, accessToken);
-      await SecureStore.setItemAsync(KEYS.refresh, refreshToken);
-      await SecureStore.setItemAsync(KEYS.user, JSON.stringify(authUser));
+      await storage.setItem(KEYS.access, accessToken);
+      await storage.setItem(KEYS.refresh, refreshToken);
+      await storage.setItem(KEYS.user, JSON.stringify(authUser));
     },
     [],
   );
 
   const logout = useCallback(async () => {
     try {
-      const refreshToken = await SecureStore.getItemAsync(KEYS.refresh);
+      const refreshToken = await storage.getItem(KEYS.refresh);
       if (refreshToken && token) {
         await apiPost('/auth/logout', { refreshToken }, token);
       }
@@ -108,9 +135,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setToken(null);
     setUser(null);
-    await SecureStore.deleteItemAsync(KEYS.access);
-    await SecureStore.deleteItemAsync(KEYS.refresh);
-    await SecureStore.deleteItemAsync(KEYS.user);
+    await storage.deleteItem(KEYS.access);
+    await storage.deleteItem(KEYS.refresh);
+    await storage.deleteItem(KEYS.user);
   }, [token]);
 
   return (
